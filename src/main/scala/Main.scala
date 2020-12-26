@@ -3,10 +3,13 @@ import cde.json.JValue
 
 @main def Main(args: String*): Unit = {
   val om = Cde {
+    "ccc" :+= Up.ccc[String]
     addFields()
   } + Cde {
+    "lll" :+= Up.ccc[String]
     "adf" := false
     "l" := Seq[Boolean](false)
+    "bbb" :+= Up.foo[String]
     "obj" := Cde {
       "a" := 0
       "b" := 1
@@ -19,13 +22,13 @@ import cde.json.JValue
       |  foo_up: ${Up.foo[String]}
       |  l_up: ${Up.l[Seq[Boolean]]}
       |""".stripMargin
-    "l" :+= Up[Seq[Boolean]] :+ true
+    "l" :+= Up[Seq[Boolean]].head
     "obj" :+= (Up[Cde] + Cde {
       "c" := 2
       "d" := 3
     })
   }
-  println(Cde.elaborate[JValue.JObject](om))
+  println(Cde.elaborate[JValue.JObject](om).fold(_.mkString("\n\n"), _.toString))
 }
 
 def addFields()(using CdeBuilder): Unit =

@@ -1,15 +1,14 @@
 package cde
 
 sealed trait CdeError:
-  def source: CdeSource
+  def source: CdeSource.File
   def message: String
   override def toString: String =
-    source match
-      case CdeSource.Empty => message
-      case CdeSource.File(f, l, c) => s"$f:$l:$c\n  $message"
+    s"${source.prettyPrint()}\n${CdeError.tab}${message.replace("\n", s"\n${CdeError.tab}")}"
 
 object CdeError:
-  def apply(src: CdeSource, msg: String): CdeError =
-    new CdeError:
-      val source = src
-      val message = msg
+  val tab = "  "
+
+  case class CdeErrorImp(source: CdeSource.File, message: String) extends CdeError
+
+  def apply(src: CdeSource.File, msg: String): CdeError = CdeErrorImp(src, msg)
