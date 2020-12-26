@@ -16,7 +16,7 @@ sealed trait CdeBuilder:
     ledger.reverse.map { case cmd =>
       mapLedger(cmd.name) = cmd +:mapLedger.getOrElse(cmd.name, Seq.empty)
     }
-    Cde.make(CdeSource.Multiple(Seq(source)), Seq(mapLedger))
+    Cde.make(CdeSource.Multiple(Seq(source)), IndexedSeq(mapLedger))
 
   extension [T: JValueEncoder : Tag](name: String)
     def := (v: T)(using CdeBuilder, CdeSource.File): Unit =
@@ -27,17 +27,17 @@ sealed trait CdeBuilder:
 
 sealed trait Cde:
   def source: CdeSource.Multiple
-  private[cde] def ledger: Seq[collection.SeqMap[String, collection.Seq[CdeCmd]]]
+  private[cde] def ledger: IndexedSeq[collection.SeqMap[String, collection.Seq[CdeCmd]]]
   def +(mixin: Cde): Cde =
     Cde.make(CdeSource.Multiple(source.sources ++ mixin.source.sources), ledger ++ mixin.ledger)
 
 object Cde:
-  opaque type Context = Seq[collection.SeqMap[String, collection.Seq[CdeCmd]]]
+  opaque type Context = IndexedSeq[collection.SeqMap[String, collection.Seq[CdeCmd]]]
   object Context:
     extension (ctx: Context)
-      def ledger: Seq[collection.SeqMap[String, collection.Seq[CdeCmd]]] = ctx
+      def ledger: IndexedSeq[collection.SeqMap[String, collection.Seq[CdeCmd]]] = ctx
 
-  private[cde] def make(src: CdeSource.Multiple, l: Seq[collection.SeqMap[String, collection.Seq[CdeCmd]]]): Cde =
+  private[cde] def make(src: CdeSource.Multiple, l: IndexedSeq[collection.SeqMap[String, collection.Seq[CdeCmd]]]): Cde =
     new Cde:
       val source = src
       val ledger = l

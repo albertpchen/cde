@@ -57,7 +57,7 @@ object JValue:
 
   private def updateCtxForIdx(
     currName: String,
-    ledger: Seq[collection.SeqMap[String, collection.Seq[CdeCmd]]],
+    ledger: IndexedSeq[collection.SeqMap[String, collection.Seq[CdeCmd]]],
     siteImp: (String, CdeSource.File) => Either[LookupException, Entry],
     idx: Int): CdeUpdateContext =
     new CdeUpdateContext:
