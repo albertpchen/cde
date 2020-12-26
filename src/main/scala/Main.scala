@@ -7,7 +7,13 @@ import cde._
     "adf" := false
     "l" := Seq[Boolean](false)
   } + Cde {
-    "foo" :+= (Site.adf[Boolean].toString + Up.foo[String] + Up.l[Seq[Boolean]].mkString(",") + "DLFKJ")
+    "foo" :+= {
+s"""
+asdf_site: ${Site.adf[Boolean].toString}
+foo_up: ${Up.foo[String]}
+l_up: ${Up.l[Seq[Boolean]]}
+"""
+    }
   }
   println(Cde.elaborate[JValue.JObject](om))
 }

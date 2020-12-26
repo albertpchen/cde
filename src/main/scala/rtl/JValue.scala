@@ -71,29 +71,29 @@ object JValue:
   given CdeElaborator[JValue.JObject] with
     def elaborate(ctx: Cde.Context): JValue.JObject =
       val errors = mutable.ArrayBuffer[String]()
-      ctx.ledger.foreach {
-        case (name, cmds) =>
-          if cmds.exists(_.size > 1) then errors += s"duplicate field ${name}"
+      ctx.ledger.foreach { map =>
+        map.foreach { case (k, v) =>
+          if v.size > 1 then errors += s"duplicate field $k"
+        }
       }
       if errors.nonEmpty then
         return throw new Exception(s"failed to elaborate Cde:\n  ${errors.mkString("\n  ")}")
 
-      val ledger = ctx.ledger.view.mapValues(_.flatten)
+      val ledger = ctx.ledger
       val cache = mutable.HashMap[String, Entry]()
       var updateCtx: OMUpdateContext = null // set null here because ctx.here and getEntry are mutually recursive
       def siteImp(name: String): Entry =
         cache.getOrElseUpdate(name, {
-          ledger.get(name) match {
-            case None => throw new Exception(s"""no field named "$name" defined""")
-            case Some(cmds) => findEntry(name, cmds, updateCtx)
+          ledger.flatMap(_.get(name).map(_.head)) match {
+            case cmds if cmds.isEmpty => throw new Exception(s"""no field named "$name" defined""")
+            case cmds => findEntry(name, cmds, updateCtx)
           }
         })
       updateCtx = new OMUpdateContext:
         def up[T](name: String)(using tag: Tag[T]) =
-          val entry = ledger.get(name) match {
-            case None => throw new Exception(s"""no field named "$name" defined here""")
-            case Some(cmds) if cmds.size <= 1 => throw new Exception(s"""no super value for field "$name"""")
-            case Some(cmds) => findEntry(name, cmds.dropRight(1), updateCtx)
+          val entry = ledger.dropRight(1).flatMap(_.get(name).map(_.head)) match {
+            case cmds if cmds.isEmpty => throw new Exception(s"""no super value for field "$name"""")
+            case cmds => findEntry(name, cmds, updateCtx)
           }
           if entry.tag.isSameType(tag) then
             entry.value.asInstanceOf[T]
@@ -107,7 +107,8 @@ object JValue:
             throw new Exception(s"""type mismatch for field "$name": found ${entry.tag}, expected $tag""")
 
       if errors.isEmpty then
-        JValue.JObject(ledger.keys.map { name =>
+        val keys = ledger.flatMap(_.keys).distinct
+        JValue.JObject(keys.map { name =>
           val entry = siteImp(name)
           name -> entry.encoder.encode(entry.value)
         }.toSeq)

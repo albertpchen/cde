@@ -14,7 +14,7 @@ sealed trait OMContext:
     ledger.reverse.map { case cmd =>
       mapLedger(cmd.name) = cmd +:mapLedger.getOrElse(cmd.name, Seq.empty)
     }
-    Cde.make(mapLedger.map { case (k, v) => k -> Seq(v) })
+    Cde.make(Seq(mapLedger))
 
   extension [T: JValueEncoder : Tag](name: String)
     def := (v: T)(using OMContext): Unit =
@@ -24,27 +24,17 @@ sealed trait OMContext:
       OMUpdate(name, fn)
 
 sealed trait Cde:
-  private[cde] def ledger: collection.SeqMap[String, collection.Seq[collection.Seq[OMCmd]]]
-  def +(mixin: Cde): Cde = {
-    val union = new mutable.LinkedHashMap[String, collection.Seq[collection.Seq[OMCmd]]]
-    ledger.foreach { case (name, cmds) =>
-      union(name) = (cmds ++ mixin.ledger.getOrElse(name, Seq.empty))
-    }
-    mixin.ledger.foreach {
-      case (name, cmds) if !union.contains(name) => union(name) = cmds
-      case _ =>
-    }
-
-    Cde.make(union)
-  }
+  private[cde] def ledger: Seq[collection.SeqMap[String, collection.Seq[OMCmd]]]
+  def +(mixin: Cde): Cde =
+    Cde.make(ledger ++ mixin.ledger)
 
 object Cde:
-  opaque type Context = collection.SeqMap[String, collection.Seq[collection.Seq[OMCmd]]]
+  opaque type Context = Seq[collection.SeqMap[String, collection.Seq[OMCmd]]]
   object Context:
     extension (ctx: Context)
-      def ledger: collection.SeqMap[String, collection.Seq[collection.Seq[OMCmd]]] = ctx
+      def ledger: Seq[collection.SeqMap[String, collection.Seq[OMCmd]]] = ctx
 
-  private[cde] def make(l: collection.SeqMap[String, collection.Seq[collection.Seq[OMCmd]]]): Cde =
+  private[cde] def make(l: Seq[collection.SeqMap[String, collection.Seq[OMCmd]]]): Cde =
     new Cde:
       val ledger = l
 
