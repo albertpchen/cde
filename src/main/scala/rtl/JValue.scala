@@ -95,16 +95,12 @@ object JValue:
             case cmds if cmds.isEmpty => throw new Exception(s"""no super value for field "$name"""")
             case cmds => findEntry(name, cmds, updateCtx)
           }
-          if entry.tag.isSameType(tag) then
-            entry.value.asInstanceOf[T]
-          else
-            throw new Exception(s"""type mismatch for field "$name": found ${entry.tag}, expected $tag""")
+          tag.castIfEquals(entry.value, entry.tag).getOrElse(
+            throw new Exception(s"""type mismatch for field "$name": found ${entry.tag}, expected $tag"""))
         def site[T](name: String)(using tag: Tag[T]) =
           val entry = siteImp(name)
-          if entry.tag.isSameType(tag) then
-            entry.value.asInstanceOf[T]
-          else
-            throw new Exception(s"""type mismatch for field "$name": found ${entry.tag}, expected $tag""")
+          tag.castIfEquals(entry.value, entry.tag).getOrElse(
+            throw new Exception(s"""type mismatch for field "$name": found ${entry.tag}, expected $tag"""))
 
       if errors.isEmpty then
         val keys = ledger.flatMap(_.keys).distinct
