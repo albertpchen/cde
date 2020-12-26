@@ -6,18 +6,27 @@ import cde._
   } + Cde {
     "adf" := false
     "l" := Seq[Boolean](false)
-  } + Cde {
-    "foo" :+= {
-s"""
-asdf_site: ${Site.adf[Boolean].toString}
-foo_up: ${Up.foo[String]}
-l_up: ${Up.l[Seq[Boolean]]}
-"""
+    "obj" := Cde {
+      "a" := 0
+      "b" := 1
     }
+  } + Cde {
+    "adf" := true
+    "foo" :+= s"""
+      |  asdf_site: ${Site.adf[Boolean]}
+      |  asdf_up: ${Up.adf[Boolean]}
+      |  foo_up: ${Up.foo[String]}
+      |  l_up: ${Up.l[Seq[Boolean]]}
+      |""".stripMargin
+    "l" :+= Up[Seq[Boolean]] :+ true
+    "obj" :+= (Up[Cde] + Cde {
+      "c" := 2
+      "d" := 3
+    })
   }
   println(Cde.elaborate[JValue.JObject](om))
 }
 
-def addFields()(using OMContext): Unit =
+def addFields()(using CdeBuilder): Unit =
   "foo" := "SLDFKJ"
   "adf" := 123

@@ -1,7 +1,9 @@
 package cde
 
+import scala.annotation.implicitNotFound
 import scala.quoted._
 
+@implicitNotFound("Cannot synthesize type Tag for type ${T}")
 sealed trait Tag[T]:
   protected def tag: String
   def isSameType(t: Tag[?]): Boolean = tag == t.tag

@@ -28,3 +28,8 @@ object JValueEncoder:
 
   given [T, S <: Iterable[T]](using elementEncoder: JValueEncoder[T]): JValueEncoder[S] with
     def encode(s: S) = JArray(s.map(elementEncoder.encode).toIndexedSeq)
+
+  given JValueEncoder[Cde] with
+    def encode(cde: Cde) =
+      Cde.elaborate[JValue.JObject](cde)
+        .fold(e => throw new Exception(e.mkString("\n")), identity)

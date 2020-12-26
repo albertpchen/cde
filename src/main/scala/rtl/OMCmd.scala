@@ -1,17 +1,17 @@
 package cde
 
-sealed trait OMCmd:
+sealed trait CdeCmd:
   def name: String
 
-sealed trait SetField extends OMCmd:
+sealed trait SetField extends CdeCmd:
   type Value
   def tag: Tag[Value]
   def encoder: JValueEncoder[Value]
   def value: Value
   override def toString: String = s"SetField($name := $value)"
 
-def OMField[V: JValueEncoder : Tag](n: String, v: V)(using ctx: OMContext) =
-  ctx.addCmd(new SetField {
+def OMField[V: JValueEncoder : Tag](n: String, v: V)(using builder: CdeBuilder) =
+  builder.addCmd(new SetField {
     type Value = V
     val name = n
     val value = v
@@ -19,14 +19,14 @@ def OMField[V: JValueEncoder : Tag](n: String, v: V)(using ctx: OMContext) =
     val tag = summon[Tag[Value]]
   })
 
-sealed trait UpdateField extends OMCmd:
+sealed trait UpdateField extends CdeCmd:
   type Value
   def tag: Tag[Value]
-  def updateFn: OMUpdateContext ?=> Value
+  def updateFn: CdeUpdateContext ?=> Value
   override def toString: String = s"UpdateField($name)"
 
-def OMUpdate[V : Tag](n: String, fn: OMUpdateContext ?=> V)(using ctx: OMContext) =
-  ctx.addCmd(new UpdateField {
+def OMUpdate[V : Tag](n: String, fn: CdeUpdateContext ?=> V)(using builder: CdeBuilder) =
+  builder.addCmd(new UpdateField {
     type Value = V
     val name = n
     val updateFn = fn
