@@ -49,14 +49,19 @@ private[cde] object Entry {
 }
 
 object JValue:
-  private class LookupException(msg: String) extends Exception(msg)
+  private class LookupException(val src: CdeSource, msg: String) extends Exception(msg)
 
   opaque type JBuilder = mutable.LinkedHashMap[String, mutable.ArrayBuffer[CdeCmd]]
 
-  private def findEntry(name: String, cmds: scala.collection.Seq[CdeCmd], ctx: CdeUpdateContext): Entry = 
+  private def findEntry(
+    src: CdeSource,
+    name: String,
+    cmds: scala.collection.Seq[CdeCmd],
+    ctx: CdeUpdateContext
+  ): Entry = 
     val startIdx = cmds.lastIndexWhere(_.isInstanceOf[SetField])
     if startIdx < 0 then
-      throw new LookupException(s"""cannot update field "$name", no initial value set""")
+      throw new LookupException(src, """cannot update field "$name", no initial value set""")
     else
       val filteredCmds = cmds.drop(startIdx - 1)
       val head = filteredCmds.head.asInstanceOf[SetField]
@@ -67,20 +72,20 @@ object JValue:
         case (e, cmd: UpdateField) if e.tag.isSameType(cmd.tag) =>
           Entry(cmd.updateFn(using ctx).asInstanceOf[e.Value], e.encoder, e.tag)
         case (e, cmd: UpdateField) =>
-            throw new LookupException(s"cannot update field ${cmd.name} with type mismatch: found ${e.tag}, expected ${cmd.tag}")
+            throw new LookupException(cmd.source, s"cannot update field ${cmd.name} with type mismatch: found ${e.tag}, expected ${cmd.tag}")
       }
       entry
 
   given CdeElaborator[JValue.JObject] with
-    def elaborate(ctx: Cde.Context): Either[Seq[String], JValue.JObject] =
-      val validationErrors = mutable.ArrayBuffer[String]()
+    def elaborate(ctx: Cde.Context): Either[Seq[CdeError], JValue.JObject] =
+      val validationErrors = mutable.ArrayBuffer[CdeError]()
       ctx.ledger.foreach { map =>
         map.foreach { case (k, v) =>
-          if v.size > 1 then validationErrors += s"duplicate field $k"
+          if v.size > 1 then validationErrors += CdeError(CdeSource.Empty, s"duplicate field $k: ${v.map(_.source).mkString(", ")}")
         }
       }
       if validationErrors.nonEmpty then
-        return throw new LookupException(s"failed to elaborate Cde:\n  ${validationErrors.mkString("\n  ")}")
+        return Left(validationErrors.toSeq)
 
       val ledger = ctx.ledger
       val cache = mutable.HashMap[String, Either[LookupException, Entry]]()
@@ -89,11 +94,11 @@ object JValue:
       def siteImp(name: String): Either[LookupException, Entry] =
         cache.getOrElseUpdate(name,
           ledger.flatMap(_.get(name).map(_.head)) match {
-            case cmds if cmds.isEmpty => Left(new LookupException(s"""no field named "$name" defined"""))
+            case cmds if cmds.isEmpty => Left(new LookupException(CdeSource.Empty, s"""no field named "$name" defined"""))
             case cmds =>
               currName = name
               try {
-                Right(findEntry(name, cmds, updateCtx))
+                Right(findEntry(CdeSource.Empty, name, cmds, updateCtx))
               } catch {
                 case e: LookupException => Left(e)
               }
@@ -101,17 +106,17 @@ object JValue:
         )
       updateCtx = new CdeUpdateContext:
         def currentName: String = currName
-        def up[T](name: String)(using tag: Tag[T]) =
+        def up[T](name: String)(using tag: Tag[T], src: CdeSource) =
           val entry = ledger.dropRight(1).flatMap(_.get(name).map(_.head)) match {
-            case cmds if cmds.isEmpty => throw new LookupException(s"""no super value for field "$name"""")
-            case cmds => findEntry(name, cmds, updateCtx)
+            case cmds if cmds.isEmpty => throw new LookupException(src, s"""no super value for field "$name"""")
+            case cmds => findEntry(src, name, cmds, updateCtx)
           }
           tag.castIfEquals(entry.value, entry.tag).getOrElse(
-            throw new LookupException(s"""type mismatch for field "$name": found ${entry.tag}, expected $tag"""))
-        def site[T](name: String)(using tag: Tag[T]) =
-          val entry = siteImp(name).fold(e => throw new LookupException(e.getMessage), identity)
+            throw new LookupException(src, s"""type mismatch for field "$name": found ${entry.tag}, expected $tag"""))
+        def site[T](name: String)(using tag: Tag[T], src: CdeSource) =
+          val entry = siteImp(name).fold(e => throw new LookupException(src, e.getMessage), identity)
           tag.castIfEquals(entry.value, entry.tag).getOrElse(
-            throw new LookupException(s"""type mismatch for field "$name": found ${entry.tag}, expected $tag"""))
+            throw new LookupException(src, s"""type mismatch for field "$name": found ${entry.tag}, expected $tag"""))
 
       val keys = ledger.flatMap(_.keys).distinct
       val lookupErrors = mutable.ArrayBuffer[LookupException]()
@@ -127,4 +132,4 @@ object JValue:
         Right(JValue.JObject(fields))
       else
         fields.foreach(println)
-        Left(lookupErrors.map(_.getMessage).toSeq)
+        Left(lookupErrors.map(e => CdeError(e.src, e.getMessage)).toSeq)

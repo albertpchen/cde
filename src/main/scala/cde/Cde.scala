@@ -19,10 +19,10 @@ sealed trait CdeBuilder:
     Cde.make(Seq(mapLedger))
 
   extension [T: JValueEncoder : Tag](name: String)
-    def := (v: T)(using CdeBuilder): Unit =
+    def := (v: T)(using CdeBuilder, CdeSource): Unit =
       OMField(name, v)
 
-    def :+= (fn: CdeUpdateContext ?=> T)(using CdeBuilder): Unit =
+    def :+= (fn: CdeUpdateContext ?=> T)(using CdeBuilder, CdeSource): Unit =
       OMUpdate(name, fn)
 
 sealed trait Cde:
@@ -40,10 +40,10 @@ object Cde:
     new Cde:
       val ledger = l
 
-  def elaborate[T: CdeElaborator](node: Cde): Either[Seq[String], T] =
+  def elaborate[T: CdeElaborator](node: Cde): Either[Seq[CdeError], T] =
     summon[CdeElaborator[T]].elaborate(node.ledger)
 
-  def apply(fn: CdeBuilder ?=> Unit): Cde =
+  def apply(fn: CdeBuilder ?=> Unit)(using CdeSource): Cde =
     val builder = new CdeBuilder {}
     fn(using builder)
     builder.toNode
