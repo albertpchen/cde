@@ -1,5 +1,7 @@
 package cde
 
+import cde.json.JValueEncoder
+
 import scala.collection.mutable
 
 sealed trait CdeBuilder:

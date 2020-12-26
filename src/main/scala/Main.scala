@@ -1,4 +1,5 @@
-import cde._
+import cde.{Cde, CdeBuilder, Site, Up}
+import cde.json.JValue
 
 @main def Main(args: String*): Unit = {
   val om = Cde {

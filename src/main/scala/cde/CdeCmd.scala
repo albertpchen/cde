@@ -1,5 +1,7 @@
 package cde
 
+import cde.json.JValueEncoder
+
 sealed trait CdeCmd:
   def name: String
 

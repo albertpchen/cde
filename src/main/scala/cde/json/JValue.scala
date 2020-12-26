@@ -1,5 +1,6 @@
-package cde
+package cde.json
 
+import cde._
 import scala.collection.mutable
 
 enum JValue derives CanEqual:

@@ -1,5 +1,6 @@
-package cde
+package cde.json
 
+import cde.Cde
 import scala.collection.mutable
 
 trait JValueEncoder[T]:
