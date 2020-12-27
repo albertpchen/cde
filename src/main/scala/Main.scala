@@ -2,7 +2,7 @@ import cde.{Cde, CdeBuilder, Site, Up}
 import cde.syntax._
 import cde.json.JValue
 
-@main def Main(args: String*): Unit = {
+@main def Main(args: String*): Unit =
   val om = Cde {
     //"ccc" :+= Up.ccc[String]
     addFields()
@@ -30,7 +30,6 @@ import cde.json.JValue
     })
   }
   println(Cde.elaborate[JValue.JObject](om).fold(_.mkString("\n\n"), _.toString))
-}
 
 def addFields()(using CdeBuilder): Unit =
   "foo" := "SLDFKJ"

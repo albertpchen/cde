@@ -18,15 +18,14 @@ enum JValue derives CanEqual:
   * Defined as a separate trait so that we can use type members to ensure
   * encoder and tag have the same type parameter.
   */
-private trait Entry {
+private trait Entry:
   type Value
   def value: Value
   def encoder: JValueEncoder[Value]
   def tag: Tag[Value]
   def src: CdeSource
-}
 
-private object Entry {
+private object Entry:
   /** Constructs a new [[Entry]]
     */
   def apply[V](v: V, e: JValueEncoder[V], t: Tag[V], s: CdeSource): Entry =
@@ -37,7 +36,6 @@ private object Entry {
       def tag = t
       def src = s
     }
-}
 
 object JValue:
   /** Thrown when an error is encountered during [[Up]] or [[Site]] lookup

@@ -19,7 +19,7 @@ trait CdeUpdateContext:
   private[cde] def site[T: Tag](name: String)(using CdeSource): T
 
 
-/** Methods for performing "super" or "up" [[Cde]] lookups
+/** Methods for performing "up" or "super" [[Cde]] lookups
   */
 object Up extends Dynamic:
   /** Looks up the current field being elaborated in the parent [[Cde]]
@@ -33,6 +33,8 @@ object Up extends Dynamic:
     summon[CdeUpdateContext].up[T](name)
 
 
+/** Methods for performing "site" or "self" [[Cde]] lookups
+  */
 object Site extends Dynamic:
   /** Looks up a field from the top-level [[Cde]] by a string parameter
     */

@@ -78,8 +78,7 @@ object Cde:
     * [[CdeBuilder]]
     */
   def apply(fn: CdeBuilder ?=> Unit)(using src: CdeSource): Cde =
-    val builder = new CdeBuilder {
+    val builder = new CdeBuilder:
       val source = src
-    }
     fn(using builder)
     builder.toNode
