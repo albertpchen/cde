@@ -3,6 +3,8 @@ package cde.json
 import cde.Cde
 import scala.collection.mutable
 
+/** Type class for encoding a type into a [[JValue]]
+  */
 trait JValueEncoder[T]:
   def encode(t: T): JValue
 

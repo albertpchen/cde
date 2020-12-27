@@ -3,27 +3,43 @@ package cde
 import scala.collection.mutable
 import scala.language.dynamics
 
-trait CdeUpdateContext {
+/** A value signifying a context where [[Up]] and [[Site]] lookups my happen
+  */
+trait CdeUpdateContext:
+  /** The name of the field currently being elaborated
+    */
   private[cde] def currentName: String
+
+  /** Looks up the field in the parent [[Cde]]
+    */
   private[cde] def up[T: Tag](name: String)(using CdeSource): T
+
+  /** Looks up the field in the top-level [[Cde]]
+    */
   private[cde] def site[T: Tag](name: String)(using CdeSource): T
-}
 
-object Up extends Dynamic {
-  def apply[T: Tag](using CdeUpdateContext, CdeSource): T = {
+
+/** Methods for performing "super" or "up" [[Cde]] lookups
+  */
+object Up extends Dynamic:
+  /** Looks up the current field being elaborated in the parent [[Cde]]
+    */
+  def apply[T: Tag](using CdeUpdateContext, CdeSource): T =
     selectDynamic(summon[CdeUpdateContext].currentName)
-  }
-  def selectDynamic[T: Tag](name: String)(using CdeUpdateContext, CdeSource): T = {
+
+  /** Looks up a field in the parent [[Cde]]
+    */
+  def selectDynamic[T: Tag](name: String)(using CdeUpdateContext, CdeSource): T =
     summon[CdeUpdateContext].up[T](name)
-  }
-}
 
-object Site extends Dynamic {
-  def apply[T: Tag](name: String)(using CdeUpdateContext, CdeSource): T = {
-    summon[CdeUpdateContext].site[T](name)
-  }
 
-  def selectDynamic[T: Tag](name: String)(using CdeUpdateContext, CdeSource): T = {
+object Site extends Dynamic:
+  /** Looks up a field from the top-level [[Cde]] by a string parameter
+    */
+  def apply[T: Tag](name: String)(using CdeUpdateContext, CdeSource): T =
     summon[CdeUpdateContext].site[T](name)
-  }
-}
+
+  /** Looks up a field from the top-level [[Cde]] using method syntax
+    */
+  def selectDynamic[T: Tag](name: String)(using CdeUpdateContext, CdeSource): T =
+    summon[CdeUpdateContext].site[T](name)
