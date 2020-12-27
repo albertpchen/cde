@@ -38,7 +38,7 @@ sealed trait SetField extends CdeCmd:
 
 /** Constructs and appends a [[SetField]] command to the enclosing [[CdeBuilder]]
   */
-def OMField[V: JValueEncoder : Tag](n: String, v: V)(using builder: CdeBuilder, src: CdeSource) =
+def CdeSet[V: JValueEncoder : Tag](n: String, v: V)(using builder: CdeBuilder, src: CdeSource) =
   builder.addCmd(new SetField {
     type Value = V
     val name = n
@@ -68,7 +68,7 @@ sealed trait UpdateField extends CdeCmd:
 
 /** Constructs and appends a [[SetField]] command to the enclosing [[CdeBuilder]]
   */
-def OMUpdate[V: JValueEncoder : Tag](n: String, fn: CdeUpdateContext ?=> V)(using builder: CdeBuilder, src: CdeSource) =
+def CdeUpdate[V: JValueEncoder : Tag](n: String, fn: CdeUpdateContext ?=> V)(using builder: CdeBuilder, src: CdeSource) =
   builder.addCmd(new UpdateField {
     type Value = V
     val name = n
