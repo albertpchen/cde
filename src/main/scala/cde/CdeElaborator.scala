@@ -2,7 +2,7 @@ package cde
 
 /** Type class for elaborating a [[Cde]]
   */
-trait CdeElaborator[T]:
+trait CdeElaborator[T] derives CanEqual:
 
   /** Elaborates a [[Cde]]
     *

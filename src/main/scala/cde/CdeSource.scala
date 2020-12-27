@@ -4,7 +4,7 @@ import scala.quoted._
 
 /** Source locators used by Cde for error messages
   */
-case class CdeSource(file: String, line: Int, col: Int):
+case class CdeSource(file: String, line: Int, col: Int) derives CanEqual:
   def prettyPrint(tab: String = ""): String =
     s"$tab${file}:${line}:${col}"
 

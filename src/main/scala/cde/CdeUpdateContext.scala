@@ -5,7 +5,7 @@ import scala.language.dynamics
 
 /** A value signifying a context where [[Up]] and [[Site]] lookups my happen
   */
-trait CdeUpdateContext:
+trait CdeUpdateContext derives CanEqual:
   /** The name of the field currently being elaborated
     */
   private[cde] def currentName: String

@@ -6,7 +6,7 @@ import scala.collection.mutable
 
 /** Builder for building up a [[Cde]] instance
   */
-sealed trait CdeBuilder:
+sealed trait CdeBuilder derives CanEqual:
   /** The instantiation site of this builder
     */
   private[cde] def source: CdeSource
@@ -34,9 +34,9 @@ sealed trait CdeBuilder:
 /** An immutable representation of a Context Dependend Environment
   *
   * This can be elaborated into useful data structures by using the
-  * [[Cdee.elaborate]] method.
+  * [[Cde.elaborate]] method.
   */
-sealed trait Cde:
+sealed trait Cde derives CanEqual:
   private[cde] def ledger: IndexedSeq[collection.SeqMap[String, collection.Seq[CdeCmd]]]
 
   /** The source locator of the site where this Cde was constructed

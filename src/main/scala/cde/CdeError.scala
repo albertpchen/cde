@@ -2,7 +2,7 @@ package cde
 
 /** Interface for errors encountered during [[Cde]] elaboration
   */
-sealed trait CdeError:
+sealed trait CdeError derives CanEqual:
   /** Source locator for this error
     */
   def source: CdeSource

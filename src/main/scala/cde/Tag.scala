@@ -6,7 +6,7 @@ import scala.quoted._
 /** Replacement for scala 2 TypeTag that only supports checking type equality
   */
 @implicitNotFound("Cannot synthesize type Tag for type ${T}")
-sealed trait Tag[T]:
+sealed trait Tag[T] derives CanEqual:
   /** The string value of the type [[T]] that uniquely identifies this type
     */
   protected def tag: String

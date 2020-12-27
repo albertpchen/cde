@@ -18,7 +18,7 @@ enum JValue derives CanEqual:
   * Defined as a separate trait so that we can use type members to ensure
   * encoder and tag have the same type parameter.
   */
-private trait Entry:
+private trait Entry derives CanEqual:
   type Value
   def value: Value
   def encoder: JValueEncoder[Value]

@@ -4,7 +4,7 @@ import cde.json.JValueEncoder
 
 /** A data representation of a Cde command
   */
-sealed trait CdeCmd:
+sealed trait CdeCmd derives CanEqual:
   /** The name of the field this command targets
     */
   def name: String
