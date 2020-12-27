@@ -1,4 +1,5 @@
 import cde.{Cde, CdeBuilder, Site, Up}
+import cde.syntax._
 import cde.json.JValue
 
 @main def Main(args: String*): Unit = {
@@ -18,11 +19,11 @@ import cde.json.JValue
     "adf" := true
     "foo" :+= s"""
       |  asdf_site: ${Site.adf[Boolean]}
-      |  asdf_up: ${Up.adf[Int]}
+      |  asdf_up: ${Up.adf[Boolean]}
       |  foo_up: ${Up.foo[String]}
       |  l_up: ${Up.l[Seq[Boolean]]}
       |""".stripMargin
-    "l" :+= Up[Seq[Int]].head
+    "l" :+= Up[Seq[Boolean]].head
     "obj" :+= (Up[Cde] + Cde {
       "c" := 2
       "d" := 3

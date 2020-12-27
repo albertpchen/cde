@@ -36,11 +36,11 @@ private trait Entry {
   def value: Value
   def encoder: JValueEncoder[Value]
   def tag: Tag[Value]
-  def src: CdeSource.File
+  def src: CdeSource
 }
 
 private object Entry {
-  def apply[V](v: V, e: JValueEncoder[V], t: Tag[V], s: CdeSource.File): Entry =
+  def apply[V](v: V, e: JValueEncoder[V], t: Tag[V], s: CdeSource): Entry =
     new Entry {
       type Value = V
       def value = v
@@ -51,7 +51,7 @@ private object Entry {
 }
 
 object JValue:
-  private class LookupException(val src: CdeSource.File, msg: String) extends Exception(msg)
+  private class LookupException(val src: CdeSource, msg: String) extends Exception(msg)
 
   opaque type JBuilder = mutable.LinkedHashMap[String, mutable.ArrayBuffer[CdeCmd]]
 
@@ -63,11 +63,11 @@ object JValue:
   private def updateCtxForIdx(
     currName: String,
     ledger: IndexedSeq[collection.SeqMap[String, collection.Seq[CdeCmd]]],
-    siteImp: (String, Int, CdeSource.File, String) => Either[LookupException, Entry],
+    siteImp: (String, Int, CdeSource, String) => Either[LookupException, Entry],
     idx: Int): CdeUpdateContext =
     new CdeUpdateContext:
       def currentName: String = currName
-      def up[T](name: String)(using tag: Tag[T], src: CdeSource.File) =
+      def up[T](name: String)(using tag: Tag[T], src: CdeSource) =
         val map = if idx <= 0 then
           throw new LookupException(src, s"""no super value for field "$name", no super Cde""")
         else
@@ -77,7 +77,7 @@ object JValue:
           throw new LookupException(src, typeErrorMessage(name, tag, entry))
         }
 
-      def site[T](name: String)(using tag: Tag[T], src: CdeSource.File) =
+      def site[T](name: String)(using tag: Tag[T], src: CdeSource) =
         val entry = siteImp(name, ledger.size, src, s"""no field named "$name" defined""").fold(throw _, identity)
         tag.castIfEquals(entry.value, entry.tag).getOrElse {
           throw new LookupException(src, typeErrorMessage(name, tag, entry))
@@ -98,7 +98,7 @@ object JValue:
 
       val ledger = ctx.ledger
       val cache = mutable.HashMap[(String, Int), Either[LookupException, Entry]]()
-      def siteImp(name: String, idx: Int, src: CdeSource.File, msg: String): Either[LookupException, Entry] =
+      def siteImp(name: String, idx: Int, src: CdeSource, msg: String): Either[LookupException, Entry] =
         cache.getOrElseUpdate(name -> idx,
           ledger.slice(0, idx).flatMap(_.get(name).map(_.head)) match {
             case cmds if cmds.isEmpty => Left(new LookupException(src, s"""no field named "$name" defined"""))

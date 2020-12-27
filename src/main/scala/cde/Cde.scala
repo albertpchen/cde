@@ -5,7 +5,8 @@ import cde.json.JValueEncoder
 import scala.collection.mutable
 
 sealed trait CdeBuilder:
-  private[cde] def source: CdeSource.File
+  private[cde] def source: CdeSource
+
   private val ledger: mutable.ArrayBuffer[CdeCmd] = new mutable.ArrayBuffer[CdeCmd]()
 
   private[cde] def addCmd(cmd: CdeCmd): Unit =
@@ -18,36 +19,33 @@ sealed trait CdeBuilder:
       case cmd if !mapLedger.contains(cmd.name) => mapLedger(cmd.name) = groups(cmd.name)
       case _ =>
     }
-    Cde.make(CdeSource.Multiple(Seq(source)), IndexedSeq(mapLedger))
-
-  extension [T: JValueEncoder : Tag](name: String)
-    def := (v: T)(using CdeBuilder, CdeSource.File): Unit =
-      OMField(name, v)
-
-    def :+= (fn: CdeUpdateContext ?=> T)(using CdeBuilder, CdeSource.File): Unit =
-      OMUpdate(name, fn)
+    Cde.make(IndexedSeq(source), IndexedSeq(mapLedger))
 
 sealed trait Cde:
-  def source: CdeSource.Multiple
   private[cde] def ledger: IndexedSeq[collection.SeqMap[String, collection.Seq[CdeCmd]]]
+
+  def sources: IndexedSeq[CdeSource]
+
   def +(mixin: Cde): Cde =
-    Cde.make(CdeSource.Multiple(source.sources ++ mixin.source.sources), ledger ++ mixin.ledger)
+    Cde.make(sources ++ mixin.sources, ledger ++ mixin.ledger)
+
 
 object Cde:
   opaque type Context = IndexedSeq[collection.SeqMap[String, collection.Seq[CdeCmd]]]
+
   object Context:
     extension (ctx: Context)
       def ledger: IndexedSeq[collection.SeqMap[String, collection.Seq[CdeCmd]]] = ctx
 
-  private[cde] def make(src: CdeSource.Multiple, l: IndexedSeq[collection.SeqMap[String, collection.Seq[CdeCmd]]]): Cde =
+  private[cde] def make(src: IndexedSeq[CdeSource], l: IndexedSeq[collection.SeqMap[String, collection.Seq[CdeCmd]]]): Cde =
     new Cde:
-      val source = src
+      val sources = src
       val ledger = l
 
   def elaborate[T: CdeElaborator](node: Cde): Either[Seq[CdeError], T] =
     summon[CdeElaborator[T]].elaborate(node.ledger)
 
-  def apply(fn: CdeBuilder ?=> Unit)(using src: CdeSource.File): Cde =
+  def apply(fn: CdeBuilder ?=> Unit)(using src: CdeSource): Cde =
     val builder = new CdeBuilder {
       val source = src
     }
