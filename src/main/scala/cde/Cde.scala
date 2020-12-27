@@ -12,9 +12,11 @@ sealed trait CdeBuilder:
     ledger += cmd
 
   private[cde] def toNode[T]: Cde =
-    val mapLedger = mutable.LinkedHashMap[String, Seq[CdeCmd]]()
-    ledger.reverse.map { case cmd =>
-      mapLedger(cmd.name) = cmd +:mapLedger.getOrElse(cmd.name, Seq.empty)
+    val mapLedger = mutable.LinkedHashMap[String, scala.collection.Seq[CdeCmd]]()
+    val groups = ledger.groupBy(_.name)
+    ledger.foreach {
+      case cmd if !mapLedger.contains(cmd.name) => mapLedger(cmd.name) = groups(cmd.name)
+      case _ =>
     }
     Cde.make(CdeSource.Multiple(Seq(source)), IndexedSeq(mapLedger))
 
