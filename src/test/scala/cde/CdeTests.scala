@@ -33,6 +33,17 @@ class CdeTests extends FunSuite {
     ))))
   }
 
+  test("hidden fields") {
+    val cde = Cde {
+      "a" ::= "b"
+    } + Cde {
+      "b" ::+= Up.a[String] + "b"
+    } + Cde {
+      "c" ::+= Site.b[String] + "c"
+    }
+    assert(Cde.elaborate[JObject](cde) == Right(JObject(Seq())))
+  }
+
   test("duplicate fields") {
     val cde = Cde {
       "a" :+= (Site.b[String] + "c")

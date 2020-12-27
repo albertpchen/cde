@@ -66,14 +66,14 @@ enum JValue derives CanEqual:
 private trait Entry derives CanEqual:
   type Value
   def value: Value
-  def encoder: JValueEncoder[Value]
+  def encoder: Option[JValueEncoder[Value]]
   def tag: Tag[Value]
   def src: CdeSource
 
 private object Entry:
   /** Constructs a new [[Entry]]
     */
-  def apply[V](v: V, e: JValueEncoder[V], t: Tag[V], s: CdeSource): Entry =
+  def apply[V](v: V, e: Option[JValueEncoder[V]], t: Tag[V], s: CdeSource): Entry =
     new Entry {
       type Value = V
       def value = v
@@ -209,7 +209,9 @@ object JValue:
           case Left(e) =>
             lookupErrors += e
             None
-          case Right(e) => Some(name -> e.encoder.encode(e.value))
+          case Right(e) =>
+            // Some(name -> e.encoder.encode(e.value))
+            e.encoder.map(enc => name -> enc.encode(e.value))
       }.toSeq
 
       if lookupErrors.isEmpty then

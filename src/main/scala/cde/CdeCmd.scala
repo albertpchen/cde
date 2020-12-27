@@ -21,14 +21,15 @@ sealed trait CdeCmd derives CanEqual:
     */
   def tag: Tag[Value]
 
+  /** The encoder instance that will be used to encode this value into a
+    * [[JValue]]
+    */
+  def encoder: Option[JValueEncoder[Value]]
+
 object CdeCmd:
   /** Represents a Cde field assignment operation
     */
   sealed trait Bind extends CdeCmd:
-    /** The encoder instance that will be used to encode this value into a
-      * [[JValue]]
-      */
-    def encoder: JValueEncoder[Value]
 
     /** The value this field should be assigned to
       */
@@ -36,16 +37,25 @@ object CdeCmd:
 
     override def toString: String = s"bind($name, $value)@${source.prettyPrint()}"
 
+  private[cde] def bind[V](
+    n: String,
+    v: V,
+    e: Option[JValueEncoder[V]],
+    src: CdeSource,
+    t: Tag[V])(using builder: CdeBuilder) =
+    builder.addCmd(new Bind {
+      type Value = V
+      val name = n
+      val source = src
+      val value = v
+      val encoder = e
+      val tag = t
+    })
 
   /** Represents a Cde field assignment operation that depends on recursive Cde
     * lookups
     */
   sealed trait Update extends CdeCmd:
-    /** The encoder instance that will be used to encode this value into a
-      * [[JValue]]
-      */
-    def encoder: JValueEncoder[Value]
-
     /** The update context function that will compute the value this field should
       * be assigned to
       */
@@ -53,28 +63,63 @@ object CdeCmd:
 
     override def toString: String = s"update($name)@${source.prettyPrint()}"
 
+  private[cde] def update[V](
+    n: String,
+    fn: CdeUpdateContext ?=> V,
+    e: Option[JValueEncoder[V]],
+    src: CdeSource,
+    t: Tag[V])(using builder: CdeBuilder) =
+    builder.addCmd(new Update {
+      type Value = V
+      val name = n
+      val source = src
+      val updateFn = fn
+      val encoder = e
+      val tag = t
+    })
+
 
 /** Constructs and appends a [[Bind]] command to the enclosing [[CdeBuilder]]
   */
-def bind[V: JValueEncoder : Tag](n: String, v: V)(using builder: CdeBuilder, src: CdeSource) =
-  builder.addCmd(new CdeCmd.Bind {
-    type Value = V
-    val name = n
-    val source = src
-    val value = v
-    val encoder = summon[JValueEncoder[Value]]
-    val tag = summon[Tag[Value]]
-  })
+def bind[Value: JValueEncoder : Tag](name: String, value: Value)(using builder: CdeBuilder, src: CdeSource) =
+  CdeCmd.bind[Value](
+    name,
+    value,
+    Some(summon[JValueEncoder[Value]]),
+    src,
+    summon[Tag[Value]],
+  )
+
+/** Constructs and appends a [[Bind]] command to the enclosing [[CdeBuilder]]
+  */
+def bindHidden[Value : Tag](name: String, value: Value)(using builder: CdeBuilder, src: CdeSource) =
+  CdeCmd.bind[Value](
+    name,
+    value,
+    None,
+    src,
+    summon[Tag[Value]],
+  )
 
 
 /** Constructs and appends a [[Update]] command to the enclosing [[CdeBuilder]]
   */
-def update[V: JValueEncoder : Tag](n: String, fn: CdeUpdateContext ?=> V)(using builder: CdeBuilder, src: CdeSource) =
-  builder.addCmd(new CdeCmd.Update {
-    type Value = V
-    val name = n
-    val source = src
-    val updateFn = fn
-    val encoder = summon[JValueEncoder[Value]]
-    val tag = summon[Tag[V]]
-  })
+def update[Value: JValueEncoder : Tag](name: String, updateFn: CdeUpdateContext ?=> Value)(using builder: CdeBuilder, src: CdeSource) =
+  CdeCmd.update[Value](
+    name,
+    updateFn,
+    Some(summon[JValueEncoder[Value]]),
+    src,
+    summon[Tag[Value]],
+  )
+
+/** Constructs and appends a [[Update]] command to the enclosing [[CdeBuilder]]
+  */
+def updateHidden[Value : Tag](name: String, updateFn: CdeUpdateContext ?=> Value)(using builder: CdeBuilder, src: CdeSource) =
+  CdeCmd.update[Value](
+    name,
+    updateFn,
+    None,
+    src,
+    summon[Tag[Value]],
+  )
