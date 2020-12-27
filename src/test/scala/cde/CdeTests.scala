@@ -1,12 +1,10 @@
 package cde
 
-import munit.{FunSuite, Location}
-
 import cde.json.JValue
 import cde.json.JValue._
 import cde.syntax._
 
-class CdeTests extends FunSuite {
+class CdeTests extends munit.FunSuite {
   test("setField") {
     val cde = Cde { "a" := "b" }
     assert(Cde.elaborate[JObject](cde) == Right(JObject(Seq("a" -> JString("b")))))
@@ -152,5 +150,80 @@ class CdeTests extends FunSuite {
           assert(a == b, s"expected $b, got $a")
         }
       case Left(e) => fail(s"elaboration failed:\n${e.mkString("\n")}")
+  }
+
+  test("example") {
+    enum Location:
+      case Center
+      case BottomRight
+      case BottomLeft
+      case TopRight
+      case TopLeft
+
+    val base = Cde {
+      import Location._
+      "width" ::= 10
+      "height" ::= 20
+      "top_left" ::+= {
+        // fails when using (Int, Int): "no implicit argument of type
+        // cde.CdeBuilder was found for parameter x$2 of method ::+= in object
+        // syntax"
+        val (x: Int, y: Int) = Site.origin_x_y[Tuple2[Int, Int]]
+        val height = Site.height[Int]
+        val width = Site.width[Int]
+        Site.origin_location[Location] match
+          case Center => (x + width / 2, y + height / 2)
+          case BottomRight => (x - width, y + height)
+          case BottomLeft => (x, y + height)
+          case TopRight => (x - width, y)
+          case TopLeft => (x, y)
+      }
+      "top" :+= Site.top_left[Tuple2[Int, Int]]._2
+      "left" :+= Site.top_left[Tuple2[Int, Int]]._1
+    }
+
+    def checkTopLeft(x: Int, y: Int, cde: Cde)(using munit.Location): Unit =
+      val result = Cde.elaborate[JObject](cde)
+      result match
+        case Right(obj) =>
+          obj.value.zip(Seq(
+            "top" -> JInteger(y),
+            "left" -> JInteger(x),
+          )).foreach { case (a, b) =>
+            assert(a == b, s"expected $b, got $a")
+          }
+        case Left(e) => fail(s"elaboration failed:\n${e.mkString("\n")}")
+
+    checkTopLeft(5, 10, base + Cde {
+      "origin_x_y" ::= (0, 0)
+      "origin_location" ::= Location.Center
+    })
+
+    checkTopLeft(6, 11, base + Cde {
+      "origin_x_y" ::= (1, 1)
+      "origin_location" ::= Location.Center
+    })
+
+    checkTopLeft(-10, 20, base + Cde {
+      "origin_x_y" ::= (0, 0)
+      "origin_location" ::= Location.BottomRight
+    })
+
+    checkTopLeft(-100, 200, base + Cde {
+      "width" ::= 100
+      "height" ::= 200
+      "origin_x_y" ::= (0, 0)
+      "origin_location" ::= Location.BottomRight
+    })
+
+    checkTopLeft(-100, 200, base + Cde {
+      "origin_x_y" ::= (1, 1)
+      "origin_location" ::= Location.BottomRight
+    } + Cde {
+      "width" ::= 100
+      "height" ::= 200
+    } + Cde {
+      "origin_x_y" ::= (0, 0)
+    })
   }
 }
