@@ -13,6 +13,51 @@ enum JValue derives CanEqual:
   case JArray(value: IndexedSeq[JValue])
   case JObject(value: Seq[(String, JValue)])
 
+  def prettyPrint(tab: String = "  "): String =
+    val builder = new StringBuilder
+    prettyPrintImp(tab, 0, "", builder)
+    builder.toString
+
+  private def prettyPrintImp(tab: String, tabNum: Int, firstPrefix: String, builder: StringBuilder): Unit =
+    builder ++= firstPrefix
+    val prefix = tab * tabNum
+    this match
+      case JString(value) =>
+        builder += '"'
+        JValue.escape(value, builder)
+        builder += '"'
+      case JInteger(value) => builder ++= value.toString
+      case JDecimal(value) => builder ++= value.toString
+      case JBoolean(value) => builder ++= value.toString
+      case JArray(value) if value.isEmpty => builder ++= "[]"
+      case JArray(value) =>
+        value.head.prettyPrintImp(tab, tabNum + 1, "[\n", builder)
+        value.tail.foreach { e =>
+          e.prettyPrintImp(tab, tabNum + 1, ",\n", builder)
+        }
+        builder ++= prefix
+        builder += ']'
+      case JObject(value) if value.isEmpty => builder ++= "{}"
+      case JObject(value) =>
+        builder ++= "{\n"
+        builder ++= prefix
+        builder ++= tab
+        builder += '"'
+        JValue.escape(value.head._1, builder)
+        value.head._2.prettyPrintImp(tab, tabNum + 1, "\": ", builder)
+        value.tail.foreach { case (k, v) =>
+          builder ++= ",\n"
+          builder ++= prefix
+          builder ++= tab
+          builder += '"'
+          JValue.escape(k, builder)
+          v.prettyPrintImp(tab, tabNum + 1, "\": ", builder)
+        }
+        builder += '\n'
+        builder ++= prefix
+        builder += '}'
+
+
 /** Private helper class that keeps track of a Cde lookup result
   *
   * Defined as a separate trait so that we can use type members to ensure
@@ -38,9 +83,31 @@ private object Entry:
     }
 
 object JValue:
+  private def escape(s: String, builder: StringBuilder): Unit =
+    var idx = 0
+    val len = s.length
+    while idx < len do
+      (s(idx): @annotation.switch) match
+        case '"'  => builder ++= "\\\""
+        case '\\' => builder ++= "\\\\"
+        case '\b' => builder ++= "\\b"
+        case '\f' => builder ++= "\\f"
+        case '\n' => builder ++= "\\n"
+        case '\r' => builder ++= "\\r"
+        case '\t' => builder ++= "\\t"
+        case c =>
+          val shouldEscape = (c >= '\u0000' && c <= '\u001f')
+          || (c >= '\u0080' && c < '\u00a0')
+          || (c >= '\u2000' && c < '\u2100')
+          if shouldEscape then
+            builder ++= "\\u%04x".format(c: Int)
+          else
+            builder ++= c.toString
+      idx += 1
+
   /** Thrown when an error is encountered during [[Up]] or [[Site]] lookup
     *
-    * These errors are caught when running [[OMUpdate]] functions and
+    * These errors are caught when running [[CdeUpdate]] functions and
     * aggregated during elaboration.
     */
   private class LookupException(val src: CdeSource, msg: String) extends Exception(msg)
@@ -94,7 +161,7 @@ object JValue:
       ctx.ledger.foreach { map =>
         map.foreach {
           case (k, v) if v.size > 1 =>
-            validationErrors += CdeError(v.last.source, s"duplicate field $k set at:\n  ${v.map(_.source.prettyPrint()).mkString("\n  ")}")
+            validationErrors += CdeError(v.last.source, s"""duplicate field "$k" set at:\n  ${v.map(_.source.prettyPrint()).mkString("\n  ")}""")
           case _ =>
         }
       }
@@ -111,7 +178,7 @@ object JValue:
       def lookupImp(name: String, idx: Int, src: CdeSource, msg: String): Either[LookupException, Entry] =
         cache.getOrElseUpdate(name -> idx,
           ledger.slice(0, idx).flatMap(_.get(name).map(_.head)) match {
-            case cmds if cmds.isEmpty => Left(new LookupException(src, s"""no field named "$name" defined"""))
+            case cmds if cmds.isEmpty => Left(new LookupException(src, msg))
             case cmds =>
               try
                 val entry = cmds.last match
@@ -138,12 +205,11 @@ object JValue:
         * [[lookupErrors]
         */
       val fields = keys.flatMap { case (name, cmds) =>
-        lookupImp(name, ledger.size, cmds.head.source, s"""no field named "$name" defined""") match {
+        lookupImp(name, ledger.size, cmds.head.source, s"""no field named "$name" defined""") match
           case Left(e) =>
             lookupErrors += e
             None
           case Right(e) => Some(name -> e.encoder.encode(e.value))
-        }
       }.toSeq
 
       if lookupErrors.isEmpty then

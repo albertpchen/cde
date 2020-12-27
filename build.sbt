@@ -1,20 +1,22 @@
 val scala2Version = "2.13.4"
 val scala3Version = "3.0.0-M3"
 
-lazy val root = project
+val scala3CrossSettings = Seq(
+  // To make the default compiler and REPL use Dotty
+  scalaVersion := scala3Version,
+
+  // To cross compile with Dotty and Scala 2
+  crossScalaVersions := Seq(scala3Version, scala2Version)
+)
+
+lazy val cde = project
   .in(file("."))
+  .settings(scala3CrossSettings)
   .settings(
-    name := "scala3-cross",
     version := "0.1.0",
-
+    useScala3doc := true,
     libraryDependencies ++= Seq(
-      "com.novocode" % "junit-interface" % "0.11" % "test",
-      "com.lihaoyi" %% "sourcecode" % "0.2.1",
+      "org.scalameta" %% "munit" % "0.7.20" % Test,
     ),
-
-    // To make the default compiler and REPL use Dotty
-    scalaVersion := scala3Version,
-
-    // To cross compile with Dotty and Scala 2
-    crossScalaVersions := Seq(scala3Version, scala2Version)
+    testFrameworks += new TestFramework("munit.Framework")
   )

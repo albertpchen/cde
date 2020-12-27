@@ -1,10 +1,12 @@
 package cde
 
+import scala.annotation.implicitNotFound
 import scala.collection.mutable
 import scala.language.dynamics
 
 /** A value signifying a context where [[Up]] and [[Site]] lookups my happen
   */
+@implicitNotFound("Could not find CdeUpdateContext make sure you are using CdeUpdate or :+=")
 trait CdeUpdateContext derives CanEqual:
   /** The name of the field currently being elaborated
     */
