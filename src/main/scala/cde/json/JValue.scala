@@ -182,9 +182,9 @@ object JValue:
             case cmds =>
               try
                 val entry = cmds.last match
-                  case cmd: SetField =>
+                  case cmd: CdeCmd.Bind =>
                     Entry(cmd.value, cmd.encoder, cmd.tag, cmd.source)
-                  case cmd: UpdateField =>
+                  case cmd: CdeCmd.Update =>
                     val ctx = updateCtxForIdx(name, ledger, lookupImp, idx - 1)
                     Entry(cmd.updateFn(using ctx), cmd.encoder, cmd.tag, cmd.source)
                 Right(entry)

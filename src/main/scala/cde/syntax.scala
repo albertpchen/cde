@@ -6,15 +6,15 @@ import cde.json.JValueEncoder
   */
 object syntax:
   extension [T: JValueEncoder : Tag](name: String)
-    /** Operator for CdeSet
+    /** Operator for bind
       */
-    def := (v: T)(using CdeBuilder, CdeSource): Unit = CdeSet(name, v)
+    def := (v: T)(using CdeBuilder, CdeSource): Unit = bind(name, v)
 
-    /** Operator for CdeUpdate
+    /** Operator for update
       */
-    def :+= (fn: CdeUpdateContext ?=> T)(using CdeBuilder, CdeSource): Unit = CdeUpdate(name, fn)
+    def :+= (fn: CdeUpdateContext ?=> T)(using CdeBuilder, CdeSource): Unit = update(name, fn)
 
   extension (cde: Cde)
     /** Operator for [[cde.extend]]
       */
-    def +(mixin: Cde): Cde = cde.extend(mixin)
+    def + (mixin: Cde): Cde = cde.extend(mixin)

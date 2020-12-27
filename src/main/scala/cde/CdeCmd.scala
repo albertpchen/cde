@@ -21,25 +21,43 @@ sealed trait CdeCmd derives CanEqual:
     */
   def tag: Tag[Value]
 
-
-/** Represents a Cde field assignment operation
-  */
-sealed trait SetField extends CdeCmd:
-  /** The encoder instance that will be used to encode this value into a
-    * [[JValue]]
+object CdeCmd:
+  /** Represents a Cde field assignment operation
     */
-  def encoder: JValueEncoder[Value]
+  sealed trait Bind extends CdeCmd:
+    /** The encoder instance that will be used to encode this value into a
+      * [[JValue]]
+      */
+    def encoder: JValueEncoder[Value]
 
-  /** The value this field should be assigned to
+    /** The value this field should be assigned to
+      */
+    def value: Value
+
+    override def toString: String = s"bind($name, $value)@${source.prettyPrint()}"
+
+
+  /** Represents a Cde field assignment operation that depends on recursive Cde
+    * lookups
     */
-  def value: Value
+  sealed trait Update extends CdeCmd:
+    /** The encoder instance that will be used to encode this value into a
+      * [[JValue]]
+      */
+    def encoder: JValueEncoder[Value]
 
-  override def toString: String = s"SetField($name := $value)[${source.prettyPrint()}]"
+    /** The update context function that will compute the value this field should
+      * be assigned to
+      */
+    def updateFn: CdeUpdateContext ?=> Value
 
-/** Constructs and appends a [[SetField]] command to the enclosing [[CdeBuilder]]
+    override def toString: String = s"update($name)@${source.prettyPrint()}"
+
+
+/** Constructs and appends a [[Bind]] command to the enclosing [[CdeBuilder]]
   */
-def CdeSet[V: JValueEncoder : Tag](n: String, v: V)(using builder: CdeBuilder, src: CdeSource) =
-  builder.addCmd(new SetField {
+def bind[V: JValueEncoder : Tag](n: String, v: V)(using builder: CdeBuilder, src: CdeSource) =
+  builder.addCmd(new CdeCmd.Bind {
     type Value = V
     val name = n
     val source = src
@@ -49,27 +67,10 @@ def CdeSet[V: JValueEncoder : Tag](n: String, v: V)(using builder: CdeBuilder, s
   })
 
 
-/** Represents a Cde field assignment operation that depends on recursive Cde
-  * lookups
+/** Constructs and appends a [[Update]] command to the enclosing [[CdeBuilder]]
   */
-sealed trait UpdateField extends CdeCmd:
-  /** The encoder instance that will be used to encode this value into a
-    * [[JValue]]
-    */
-  def encoder: JValueEncoder[Value]
-
-  /** The update context function that will compute the value this field should
-    * be assigned to
-    */
-  def updateFn: CdeUpdateContext ?=> Value
-
-  override def toString: String = s"UpdateField($name)[${source.prettyPrint()}]"
-
-
-/** Constructs and appends a [[SetField]] command to the enclosing [[CdeBuilder]]
-  */
-def CdeUpdate[V: JValueEncoder : Tag](n: String, fn: CdeUpdateContext ?=> V)(using builder: CdeBuilder, src: CdeSource) =
-  builder.addCmd(new UpdateField {
+def update[V: JValueEncoder : Tag](n: String, fn: CdeUpdateContext ?=> V)(using builder: CdeBuilder, src: CdeSource) =
+  builder.addCmd(new CdeCmd.Update {
     type Value = V
     val name = n
     val source = src
