@@ -97,8 +97,8 @@ val box = Cde {
 Cde.elaborate[JObject](box)
   .foreach(o => println(o.prettyPrint()))
 // {
-//   "width": 10,
-//   "height": 20
+//   "width": 100,
+//   "height": 200
 // }
 ```
 
@@ -143,13 +143,15 @@ val smallBoxConfig = Cde {
   "origin_location" ::= Location.Center
 }
 
-Cde.elaborate[JObject](smallBoxConfig)
-  .foreach(o => println(o.prettyPrint()))
+Cde.elaborate[JObject](
+  baseBoxConfig +
+  smallBoxConfig
+).foreach(o => println(o.prettyPrint()))
 // {
-//   "width": 10,
-//   "height": 20,
 //   "top": 10,
-//   "left": 5
+//   "left": 5,
+//   "width": 10,
+//   "height": 20
 // }
 
 
@@ -157,13 +159,16 @@ val bottomLeftConfig = Cde {
   "origin_location" ::= Location.Center
 }
 
-Cde.elaborate[JObject](smallBoxConfig + bottomLeftConfig)
-  .foreach(o => println(o.prettyPrint()))
+Cde.elaborate[JObject](
+  baseBoxConfig +
+  smallBoxConfig +
+  bottomLeftConfig
+).foreach(o => println(o.prettyPrint()))
 // {
-//   "width": 10,
-//   "height": 20,
 //   "top": 10,
-//   "left": 5
+//   "left": 5,
+//   "width": 10,
+//   "height": 20
 // }
 
 
@@ -176,12 +181,17 @@ def translate(dx: Int, dy: Int)(cde: Cde): Cde =
     }
   }
 
-Cde.elaborate[JObject](translate(5, -5)(smallBoxConfig))
-  .foreach(o => println(o.prettyPrint()))
+Cde.elaborate[JObject](
+  translate(5, -5)(
+    baseBoxConfig +
+    smallBoxConfig +
+    bottomLeftConfig
+  )
+).foreach(o => println(o.prettyPrint()))
 // {
-//   "width": 10,
-//   "height": 20,
 //   "top": 5,
-//   "left": 0
+//   "left": 10,
+//   "width": 10,
+//   "height": 20
 // }
 ```
