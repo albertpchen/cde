@@ -2,17 +2,18 @@
 
 This is a Scala 3 configuration library similar to
 [Config](https://github.com/chipsalliance/api-config-chipsalliance) used by
-[rocket-chip](https://github.com/chipsalliance/rocket-chip). This is also very
-similar to [Jsonnet](https://jsonnet.org/).
+[rocket-chip](https://github.com/chipsalliance/rocket-chip) with a
+[Jsonnet](https://jsonnet.org/)-like DSL.
 
 ## Overview
 The user API of this library revolves around `Cde` objects. These objects may
 contain mappings of string field names to arbitrary values.
 ```scala
 import cde._
+import cde.syntax._
 val boxConfig = Cde {
-  bind("width", 100)
-  bind("height", 200)
+  "width" := 100
+  "height" := 200
 }
 ```
 
@@ -20,9 +21,11 @@ They may also contain logic to compute field values by performing recursive
 lookups of other field values.
 ```scala
 val boxConfig = Cde {
-  bind("width", 100)
-  bind("height", 200)
-  update("area", Site.width[Int] * Site.height[Int])
+  "width" := 100
+  "height" := 200
+
+  // lazily computes the area based on the final values of height and width
+  "area" :+= Site.width[Int] * Site.height[Int]
 }
 ```
 
@@ -30,15 +33,18 @@ val boxConfig = Cde {
 objects to override values.
 ```scala
 val baseBoxConfig = Cde {
-  bind("width", 100)
-  bind("height", 200)
-  update("area", Site.width[Int] * Site.height[Int])
+  "width" := 100
+  "height" := 200
+  "area" :+= Site.width[Int] * Site.height[Int]
 }
 
-val boxConfig = baseBoxConfig.mixin(Cde {
-  bind("width", 300)
-  update("height", Up.height[Int] * 2)
-})
+val boxConfig = baseBoxConfig + Cde {
+  // overrides baseBoxConfigs's width to 300
+  "width" := 300
+
+  // doubles the existing height value in baseBoxConfig
+  "height" :+= Up.height[Int] * 2
+}
 ```
 
 ## Syntax
@@ -69,23 +75,23 @@ These are named after the `up` and `site` variable names used by rocket-chip
 for `Config` views, because they provide the same functionality. The methods in
 the `Up` and `Site` objects require a `given` instance of `CdeUpdateContext`
 (provided by `update` and `updateHidden`).
-- `Up`: Looks up a field value in the parent of the current `Cde` object.
-  Lookups can be performed calling the `apply` method with the field name and
-  its expected value type e.g. `Up[Int]("width")` or by using method syntax
-  `Up.width[Int]`. If no name is provided to the `apply` method e.g.
-  `Up[Int]()`, the current field name of the enclosing `update`/`updateHidden`
-  is used. Will cause elaboration to fail if the field does not exist in the
-  parent or if it does not have the expected typit does not have the expected
-  type
+- `Up`: Looks up a field value in the parent of the current `Cde` object. This
+  is equivalent to `super` in Jsonnet.  Lookups can be performed calling the
+  `apply` method with the field name and its expected value type e.g.
+  `Up[Int]("width")` or by using method syntax `Up.width[Int]`. If no name is
+  provided to the `apply` method e.g.  `Up[Int]()`, the current field name of
+  the enclosing `update`/`updateHidden` is used. Will cause elaboration to fail
+  if the field does not exist in the parent or if it does not have the expected
+  typit does not have the expected type
 - `Site`: Looks up a field in the top-level `Cde`. i.e. the field lookup is
   performed from the view of the final `Cde` after all other `Cde`s have been
-  mixed-in. Lookups can be performed calling the `apply` method with the field
-  name and its expected value type e.g. `Site[Int]("width")` or by using method
-  syntax `Site.width[Int]`.  If no name is provided to the `apply` method e.g.
-  `Site[Int]()`, the current field name of the enclosing
-  `update`/`updateHidden` is used. Will cause elaboration to fail if the field
-  was never set or if it does not have the expected typit does not have the
-  expected type
+  mixed-in. This is equivalent to `self` in Jsonnet. Lookups can be performed
+  calling the `apply` method with the field name and its expected value type
+  e.g. `Site[Int]("width")` or by using method syntax `Site.width[Int]`.  If no
+  name is provided to the `apply` method e.g.  `Site[Int]()`, the current field
+  name of the enclosing `update`/`updateHidden` is used. Will cause elaboration
+  to fail if the field was never set or if it does not have the expected typit
+  does not have the expected type
 
 ## Elaboration
 `Cde` objects aren't very useful on their own. They need to be elaborated to be
@@ -112,9 +118,10 @@ Cde.elaborate[JObject](box)
 ```
 
 ## Example
-Here is a simple box configuration example that uses the features of this
-library to create box configurations that dynamiclly updates box coordinates
-when other fields are updated.
+Here is a simple example that uses the features of this library to create box
+configurations that dynamiclly updates box coordinates based on the values of
+user-specified fields.
+
 ```scala
 import cde.syntax._ // operator extension methods
 
