@@ -121,8 +121,8 @@ class CdeTests extends munit.FunSuite {
         |  foo_up: ${Up.foo[String]}
         |  l_up: ${Up.l[List[Boolean]]}
         |""".stripMargin
-      "l" :+= Up[List[Boolean]].head
-      "obj" :+= (Up[Cde] + Cde {
+      "l" :+= Up[List[Boolean]]().head
+      "obj" :+= (Up[Cde]() + Cde {
         "c" := 2
         "d" := 3
       })
@@ -225,5 +225,18 @@ class CdeTests extends munit.FunSuite {
     } + Cde {
       "origin_x_y" ::= (0, 0)
     })
+
+    def translate(dx: Int, dy: Int)(cde: Cde): Cde =
+      cde + Cde {
+        "origin_x_y" ::+= {
+          val (x: Int, y: Int) = Up.origin_x_y[Tuple2[Int, Int]]
+          (x + dx, y + dy)
+        }
+      }
+
+    checkTopLeft(0, 15, translate(-5, 5)(base + Cde {
+      "origin_x_y" ::= (0, 0)
+      "origin_location" ::= Location.Center
+    }))
   }
 }

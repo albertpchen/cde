@@ -26,8 +26,13 @@ trait CdeUpdateContext derives CanEqual:
 object Up extends Dynamic:
   /** Looks up the current field being elaborated in the parent [[Cde]]
     */
-  def apply[T: Tag](using CdeUpdateContext, CdeSource): T =
+  def apply[T: Tag]()(using CdeUpdateContext, CdeSource): T =
     selectDynamic(summon[CdeUpdateContext].currentName)
+
+  /** Looks up a field in the parent [[Cde]] by a string parameter
+    */
+  def apply[T: Tag](name: String)(using CdeUpdateContext, CdeSource): T =
+    selectDynamic(name)
 
   /** Looks up a field in the parent [[Cde]]
     */
@@ -41,7 +46,7 @@ object Site extends Dynamic:
   /** Looks up a field from the top-level [[Cde]] by a string parameter
     */
   def apply[T: Tag](name: String)(using CdeUpdateContext, CdeSource): T =
-    summon[CdeUpdateContext].site[T](name)
+    selectDynamic(name)
 
   /** Looks up a field from the top-level [[Cde]] using method syntax
     */

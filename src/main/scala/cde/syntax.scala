@@ -26,4 +26,4 @@ object syntax:
   extension (cde: Cde)
     /** Operator for [[cde.extend]]
       */
-    def + (mixin: Cde): Cde = cde.extend(mixin)
+    def + (overrides: Cde): Cde = cde.mixin(overrides)

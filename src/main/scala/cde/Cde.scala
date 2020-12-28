@@ -45,8 +45,8 @@ sealed trait Cde derives CanEqual:
 
   /** Returns the [[Cde]] resulting from stacking this Cde on top of another
     */
-  def extend(mixin: Cde): Cde =
-    Cde.make(sources ++ mixin.sources, ledger ++ mixin.ledger)
+  def mixin(overrides: Cde): Cde =
+    Cde.make(sources ++ overrides.sources, ledger ++ overrides.ledger)
 
 object Cde:
   /** Context that is passed to [[CdeElaborato]]s during elaboration
