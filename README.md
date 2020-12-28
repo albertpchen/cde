@@ -19,7 +19,6 @@ val boxConfig = Cde {
 They may also contain logic to compute field values by performing recursive
 lookups of other field values.
 ```scala
-import cde._
 val boxConfig = Cde {
   bind("width", 100)
   bind("height", 200)
@@ -27,10 +26,9 @@ val boxConfig = Cde {
 }
 ```
 
-`Cde` objects may also (mix-in)[http://www.bracha.org/oopsla90.pdf] other `Cde`
+`Cde` objects may also [mix-in](http://www.bracha.org/oopsla90.pdf) other `Cde`
 objects to override values.
 ```scala
-import cde._
 val baseBoxConfig = Cde {
   bind("width", 100)
   bind("height", 200)
@@ -91,6 +89,7 @@ converted into useful formats like JSON objects. Elaboration is done using the
 associated `CdeElaborator` to produce JSON from `Cde`s. The `elaborate` method
 returns type `Either[Seq[CdeError], T]`.
 ```scala
+import cde.json.JValue.JObject
 val box = Cde {
   bind("width", 100)
   bind("height", 200)
@@ -108,9 +107,7 @@ Here is a simple box configuration example that uses the features of this
 library to create box configurations that dynamiclly updates box coordinates
 when other fields are updated.
 ```scala
-import cde._
 import cde.syntax._ // operator extension methods
-import cde.json.JValue.JObject
 
 enum Location:
   case Center

@@ -48,6 +48,7 @@ sealed trait Cde derives CanEqual:
   def mixin(overrides: Cde): Cde =
     Cde.make(sources ++ overrides.sources, ledger ++ overrides.ledger)
 
+
 object Cde:
   /** Context that is passed to [[CdeElaborato]]s during elaboration
     *
