@@ -56,6 +56,8 @@ builder methods require a `given` instance of `CdeBuilder` (provided by the
   recursive field lookups
 - `updateHidden` (`::+=`): like `update` but also makes it so that the field
   will not appear in the elaborated JSON
+These methods may only be called once for each field name within the same `Cde`
+block.
 
 `Cde` objects may be mixed-in using the `mixin` method or the `+` operator.
 This will return a new `Cde` object with the field values of the RHS overriding
@@ -72,14 +74,18 @@ the `Up` and `Site` objects require a `given` instance of `CdeUpdateContext`
   its expected value type e.g. `Up[Int]("width")` or by using method syntax
   `Up.width[Int]`. If no name is provided to the `apply` method e.g.
   `Up[Int]()`, the current field name of the enclosing `update`/`updateHidden`
-  is used.
+  is used. Will cause elaboration to fail if the field does not exist in the
+  parent or if it does not have the expected typit does not have the expected
+  type
 - `Site`: Looks up a field in the top-level `Cde`. i.e. the field lookup is
   performed from the view of the final `Cde` after all other `Cde`s have been
   mixed-in. Lookups can be performed calling the `apply` method with the field
   name and its expected value type e.g. `Site[Int]("width")` or by using method
   syntax `Site.width[Int]`.  If no name is provided to the `apply` method e.g.
   `Site[Int]()`, the current field name of the enclosing
-  `update`/`updateHidden` is used.
+  `update`/`updateHidden` is used. Will cause elaboration to fail if the field
+  was never set or if it does not have the expected typit does not have the
+  expected type
 
 ## Elaboration
 `Cde` objects aren't very useful on their own. They need to be elaborated to be
@@ -87,7 +93,10 @@ converted into useful formats like JSON objects. Elaboration is done using the
 `Cde.elaborate` method. This method requires a given instance of the
 `CdeElaborator` type class. This library includes a simple JSON AST with an
 associated `CdeElaborator` to produce JSON from `Cde`s. The `elaborate` method
-returns type `Either[Seq[CdeError], T]`.
+returns type `Either[Seq[CdeError], T]`. Elaboration will return
+`Seq[CdeError]` if any `Up`/`Site` look ups fail or if there are validation
+errors. `CdeError`s contain a `source: CdeSource` method locating the site of
+the error and a `message: String` method explainin the cause of the error.
 ```scala
 import cde.json.JValue.JObject
 val box = Cde {
@@ -136,6 +145,14 @@ val baseBoxConfig = Cde {
   "top" :+= Site.top_left[Tuple2[Int, Int]]._2
   "left" :+= Site.top_left[Tuple2[Int, Int]]._1
 }
+
+// will fail elaboration because "height" and "width" are not set
+Cde.elaborate[JObject](
+  baseBoxConfig
+).swap.foreach(_.foreach(println))
+// REPL:9:33
+//   no field named "height" defined
+
 
 val smallBoxConfig = Cde {
   "width" := 10
