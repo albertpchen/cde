@@ -15,12 +15,12 @@ enum JValue derives CanEqual:
 
   def prettyPrint(tab: String = "  "): String =
     val builder = new StringBuilder
-    prettyPrintImp(tab, 0, "", builder)
+    prettyPrintImp(tab, 0, None, builder)
     builder.toString
 
-  private def prettyPrintImp(tab: String, tabNum: Int, firstPrefix: String, builder: StringBuilder): Unit =
-    builder ++= firstPrefix
+  private def prettyPrintImp(tab: String, tabNum: Int, firstPrefix: Option[String], builder: StringBuilder): Unit =
     val prefix = tab * tabNum
+    builder ++= firstPrefix.getOrElse(prefix)
     this match
       case JString(value) =>
         builder += '"'
@@ -31,10 +31,13 @@ enum JValue derives CanEqual:
       case JBoolean(value) => builder ++= value.toString
       case JArray(value) if value.isEmpty => builder ++= "[]"
       case JArray(value) =>
-        value.head.prettyPrintImp(tab, tabNum + 1, "[\n", builder)
+        builder ++= "[\n"
+        value.head.prettyPrintImp(tab, tabNum + 1, None, builder)
         value.tail.foreach { e =>
-          e.prettyPrintImp(tab, tabNum + 1, ",\n", builder)
+          builder ++= ",\n"
+          e.prettyPrintImp(tab, tabNum + 1, None, builder)
         }
+        builder += '\n'
         builder ++= prefix
         builder += ']'
       case JObject(value) if value.isEmpty => builder ++= "{}"
@@ -44,14 +47,14 @@ enum JValue derives CanEqual:
         builder ++= tab
         builder += '"'
         JValue.escape(value.head._1, builder)
-        value.head._2.prettyPrintImp(tab, tabNum + 1, "\": ", builder)
+        value.head._2.prettyPrintImp(tab, tabNum + 1, Some("\": "), builder)
         value.tail.foreach { case (k, v) =>
           builder ++= ",\n"
           builder ++= prefix
           builder ++= tab
           builder += '"'
           JValue.escape(k, builder)
-          v.prettyPrintImp(tab, tabNum + 1, "\": ", builder)
+          v.prettyPrintImp(tab, tabNum + 1, Some("\": "), builder)
         }
         builder += '\n'
         builder ++= prefix
