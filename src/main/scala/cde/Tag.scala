@@ -41,4 +41,39 @@ object Tag:
     */
   def makeTag[T: Type](using Quotes): Expr[Tag[T]] =
     import quotes.reflect._
-    '{ Tag[T](${Expr(TypeTree.of[T].show)}) }
+    def isClass(tpe: TypeRepr): Boolean = tpe.typeSymbol.isClassDef
+
+    def isGround(t: Boolean, tpe: TypeRepr): Boolean =
+      tpe match
+      case _ if !t => t
+      case tp: TermRef => false
+      case tp: TypeRef => isClass(tp.dealias)
+      case tp: ConstantType => true
+      case tp: SuperType => false
+      case tp: AppliedType =>
+        @annotation.tailrec def foldArgs(x: Boolean, args: List[TypeRepr]): Boolean =
+          if args.isEmpty || !x then x else foldArgs(isGround(x, args.head), args.tail)
+        val res = isClass(tp.tycon.dealias)
+        if res then
+          foldArgs(res, tp.args)
+        else
+          false
+      case tp: AnnotatedType => false
+      case tp: AndOrType => isGround(isGround(t, tp.left), tp.right)
+      case tp: MatchType => false
+      case tp: ByNameType => false
+      case tp: ParamRef => false
+      case tp: ThisType => false
+      case tp: RecursiveThis => false
+      case tp: RecursiveType => false
+      case tp: LambdaType => false
+      case tp: MatchCase => false
+      case tp: TypeBounds => false
+      case tp: NoPrefix => false
+
+    val tpe = TypeTree.of[T].tpe.dealias.simplified
+
+    if isGround(true, tpe) then
+      '{ Tag[T](${Expr(TypeTree.of[T].show)}) }
+    else
+      report.throwError(s"cannot create type tag for non-ground type: ${tpe.show}")
