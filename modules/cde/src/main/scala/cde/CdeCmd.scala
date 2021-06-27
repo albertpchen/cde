@@ -5,35 +5,35 @@ import cde.json.JValueEncoder
 /** A data representation of a Cde command
   */
 sealed trait CdeCmd derives CanEqual:
-  /** The name of the field this command targets
-    */
-  def name: String
-
   /** The source locator of the site this command was issued at
     */
   def source: CdeSource
 
-  /** The type of the value the field should map to
+  /** The name of the field this command targets
     */
-  type Value
+  def name: String
 
-  /** Tag that identifies the value type
-    */
-  def tag: Tag[Value]
-
-  /** The encoder instance that will be used to encode this value into a
-    * [[JValue]]
-    */
-  def encoder: Option[JValueEncoder[Value]]
 
 object CdeCmd:
   /** Represents a Cde field assignment operation
     */
   sealed trait Bind extends CdeCmd:
+    /** The type of the value the field should map to
+      */
+    type Value
 
     /** The value this field should be assigned to
       */
     def value: Value
+
+    /** Tag that identifies the value type
+      */
+    def tag: Tag[Value]
+
+    /** The encoder instance that will be used to encode this value into a
+      * [[JValue]]
+      */
+    def encoder: Option[JValueEncoder[Value]]
 
     override def toString: String = s"bind($name, $value)@${source.prettyPrint()}"
 
@@ -42,7 +42,8 @@ object CdeCmd:
     v: V,
     e: Option[JValueEncoder[V]],
     src: CdeSource,
-    t: Tag[V])(using builder: CdeBuilder) =
+    t: Tag[V],
+  )(using builder: CdeBuilder) =
     builder.addCmd(new Bind {
       type Value = V
       val name = n
@@ -56,6 +57,23 @@ object CdeCmd:
     * lookups
     */
   sealed trait Update extends CdeCmd:
+    /** The name of the field this command targets
+      */
+    def name: String
+
+    /** The type of the value the field should map to
+      */
+    type Value
+
+    /** Tag that identifies the value type
+      */
+    def tag: Tag[Value]
+
+    /** The encoder instance that will be used to encode this value into a
+      * [[JValue]]
+      */
+    def encoder: Option[JValueEncoder[Value]]
+
     /** The update context function that will compute the value this field should
       * be assigned to
       */
@@ -68,7 +86,8 @@ object CdeCmd:
     fn: CdeUpdateContext ?=> V,
     e: Option[JValueEncoder[V]],
     src: CdeSource,
-    t: Tag[V])(using builder: CdeBuilder) =
+    t: Tag[V],
+  )(using builder: CdeBuilder) =
     builder.addCmd(new Update {
       type Value = V
       val name = n
@@ -123,3 +142,6 @@ def updateHidden[Value : Tag](name: String, updateFn: CdeUpdateContext ?=> Value
     src,
     summon[Tag[Value]],
   )
+
+def self(using builder: CdeBuilder, src: CdeSource): CdeHandle =
+  builder.getHandle(src)

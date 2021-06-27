@@ -31,6 +31,19 @@ class CdeTests extends munit.FunSuite {
     ))))
   }
 
+  test("updateField with self") {
+    val cde = Cde {
+      val local = self
+      "a" :+= (self.b[String] + "c")
+    } + Cde {
+      "b" := "c"
+    }
+    assert(Cde.elaborate[JObject](cde) == Right(JObject(Seq(
+      "a" -> JString("cc"),
+      "b" -> JString("c"),
+    ))))
+  }
+
   test("hidden fields") {
     val cde = Cde {
       "a" ::= "b"
@@ -168,7 +181,7 @@ class CdeTests extends munit.FunSuite {
         // fails when using (Int, Int): "no implicit argument of type
         // cde.CdeBuilder was found for parameter x$2 of method ::+= in object
         // syntax"
-        val (x: Int, y: Int) = Site.origin_x_y[Tuple2[Int, Int]]
+        val (x: Int, y: Int) = Site.origin_x_y[(Int, Int)]
         val height = Site.height[Int]
         val width = Site.width[Int]
         Site.origin_location[Location] match
@@ -178,8 +191,8 @@ class CdeTests extends munit.FunSuite {
           case TopRight => (x - width, y)
           case TopLeft => (x, y)
       }
-      "top" :+= Site.top_left[Tuple2[Int, Int]]._2
-      "left" :+= Site.top_left[Tuple2[Int, Int]]._1
+      "top" :+= Site.top_left[(Int, Int)]._2
+      "left" :+= Site.top_left[(Int, Int)]._1
     }
 
     def checkTopLeft(x: Int, y: Int, cde: Cde)(using munit.Location): Unit =

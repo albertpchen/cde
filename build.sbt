@@ -1,16 +1,15 @@
-val scala3Version = "3.0.0-M3"
+val scala3Version = "3.0.0"
 
 // settings common to JVM and Js builds
 val cdeCommonSettings = Seq(
   version := "0.1.0",
-  useScala3doc := true,
   scalaVersion := scala3Version,
   libraryDependencies ++= Seq(
-    "org.scalameta" %%% "munit" % "0.7.20" % Test,
+    "org.scalameta" %%% "munit" % "0.7.26" % Test,
   ),
   testFrameworks += new TestFramework("munit.Framework"),
-  Compile / scalaSource := (ThisBuild / baseDirectory).value / "src"/"main"/"scala",
-  Test / scalaSource := (ThisBuild / baseDirectory).value / "src"/"test"/"scala",
+  Compile / scalaSource := (ThisBuild / baseDirectory).value/"modules"/"cde"/"src"/"main"/"scala",
+  Test / scalaSource := (ThisBuild / baseDirectory).value/"modules"/"cde"/"src"/"test"/"scala",
 )
 
 // project for JVM build (default)
@@ -25,4 +24,30 @@ lazy val cdeJs = project
   .settings(cdeCommonSettings)
   .settings(
     Test / scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
+  )
+
+lazy val test = project
+  .in(file("modules/test"))
+  .dependsOn(cde)
+  .settings(
+    version := "0.1.0",
+    scalaVersion := scala3Version,
+    libraryDependencies ++= Seq(
+      ("io.get-coursier" %% "coursier" % "2.0.16").cross(CrossVersion.for3Use2_13),
+    ),
+  )
+
+lazy val docs = project
+  .in(file("target/docs"))
+  .enablePlugins(MdocPlugin)
+  .dependsOn(cde)
+  .settings(
+    scalaVersion := scala3Version,
+    mdocIn := file("docs/src"),
+    mdocOut := file("docs"),
+    mdocExtraArguments := Seq("--cwd", "docs"),
+    mdocVariables := Map(
+      // build dir for mdoc programs to dump temp files
+      "BUILD_DIR" -> "target/docs"
+    )
   )

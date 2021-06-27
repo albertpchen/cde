@@ -8,6 +8,8 @@ import scala.language.dynamics
   */
 @implicitNotFound("Could not find CdeUpdateContext make sure you are using CdeUpdate or :+=")
 trait CdeUpdateContext derives CanEqual:
+  private[cde] def getUpdateContextForBuilder(builder: CdeBuilder)(using CdeSource): CdeUpdateContext
+
   /** The name of the field currently being elaborated
     */
   private[cde] def currentName: String
@@ -40,6 +42,14 @@ object Up extends Dynamic:
     summon[CdeUpdateContext].up[T](name)
 
 
+// final class SiteHandle private[cde] (builder: CdeBuilder) extends Dynamic:
+//   def apply[T: Tag](name: String)(using src: CdeSource): T =
+//     selectDynamic(name)
+// 
+//   def selectDynamic[T: Tag](name: String)(using src: CdeSource): T =
+//     ctx.site[T](name)
+
+
 /** Methods for performing "site" or "self" [[Cde]] lookups
   */
 object Site extends Dynamic:
@@ -52,3 +62,20 @@ object Site extends Dynamic:
     */
   def selectDynamic[T: Tag](name: String)(using CdeUpdateContext, CdeSource): T =
     summon[CdeUpdateContext].site[T](name)
+
+  def apply()(using ctx: CdeUpdateContext): Dynamic = ??? //new SiteHandle(ctx)
+/**
+ * Cde {
+ *   "project" :+= Cde {
+ *     val project = self
+ *     name := "cde",
+ *     classesDir :+= s"${project.out[String]}/${project.name[String]}/${project.version[String]}/classes"
+ *     scala :+= {
+ *       Cde {
+ *         analysis += {
+ *         }
+ *       }
+ *     }
+ *   }
+ * }
+ */

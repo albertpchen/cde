@@ -77,13 +77,13 @@ private object Entry:
   /** Constructs a new [[Entry]]
     */
   def apply[V](v: V, e: Option[JValueEncoder[V]], t: Tag[V], s: CdeSource): Entry =
-    new Entry {
+    new Entry:
       type Value = V
       def value = v
       def encoder = e
       def tag = t
       def src = s
-    }
+
 
 object JValue:
   private def escape(s: String, builder: StringBuilder): Unit =
@@ -135,9 +135,14 @@ object JValue:
     currName: String,
     ledger: IndexedSeq[collection.SeqMap[String, collection.Seq[CdeCmd]]],
     lookupImp: (String, Int, CdeSource, String) => Either[LookupException, Entry],
+    cdeToIdxMap: Map[CdeBuilder, Int],
     idx: Int): CdeUpdateContext =
     new CdeUpdateContext:
       def currentName: String = currName
+
+      def getUpdateContextForBuilder(builder: CdeBuilder)(using src: CdeSource) =
+        updateCtxForIdx(currName, ledger, lookupImp, cdeToIdxMap, cdeToIdxMap(builder))
+
       def up[T](name: String)(using tag: Tag[T], src: CdeSource) =
         val map = if idx <= 0 then
           throw new LookupException(src, s"""no super value for field "$name", no super Cde""")
@@ -161,7 +166,9 @@ object JValue:
         * found. We cannot proceed if there are duplicate fields.
         */
       val validationErrors = mutable.ArrayBuffer[CdeError]()
-      ctx.ledger.foreach { map =>
+      val ledgerPairs = ctx.ledger
+      val ledger = ledgerPairs.map(_._2)
+      ledger.foreach { map =>
         map.foreach {
           case (k, v) if v.size > 1 =>
             validationErrors += CdeError(v.last.source, s"""duplicate field "$k" set at:\n  ${v.map(_.source.prettyPrint()).mkString("\n  ")}""")
@@ -171,7 +178,10 @@ object JValue:
       if validationErrors.nonEmpty then
         return Left(validationErrors.toSeq)
 
-      val ledger = ctx.ledger
+      @scala.annotation.threadUnsafe
+      lazy val cdeToIdxMap = ledgerPairs.zipWithIndex.map { case ((cde, _), idx) =>
+        cde -> idx
+      }.toMap
       // Cache that stores results of lookups of fields at different indices
       val cache = mutable.HashMap[(String, Int), Either[LookupException, Entry]]()
 
@@ -188,7 +198,7 @@ object JValue:
                   case cmd: CdeCmd.Bind =>
                     Entry(cmd.value, cmd.encoder, cmd.tag, cmd.source)
                   case cmd: CdeCmd.Update =>
-                    val ctx = updateCtxForIdx(name, ledger, lookupImp, idx - 1)
+                    val ctx = updateCtxForIdx(name, ledger, lookupImp, cdeToIdxMap, idx - 1)
                     Entry(cmd.updateFn(using ctx), cmd.encoder, cmd.tag, cmd.source)
                 Right(entry)
               catch
