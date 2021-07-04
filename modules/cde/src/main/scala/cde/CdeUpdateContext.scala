@@ -8,7 +8,7 @@ import scala.language.dynamics
   */
 @implicitNotFound("Could not find CdeUpdateContext make sure you are using CdeUpdate or :+=")
 trait CdeUpdateContext derives CanEqual:
-  private[cde] def getUpdateContextForBuilder(builder: CdeBuilder)(using CdeSource): CdeUpdateContext
+  private[cde] def getUpdateContextForId(id: CdeId)(using CdeSource): CdeUpdateContext
 
   /** The name of the field currently being elaborated
     */
