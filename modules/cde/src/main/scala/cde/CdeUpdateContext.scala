@@ -16,11 +16,11 @@ trait CdeUpdateContext derives CanEqual:
 
   /** Looks up the field in the parent [[Cde]]
     */
-  private[cde] def up[T: Tag](name: String)(using CdeSource): T
+  private[cde] def up[T: Tag](name: String, subFields: Seq[String])(using CdeSource): T
 
   /** Looks up the field in the top-level [[Cde]]
     */
-  private[cde] def site[T: Tag](name: String)(using CdeSource): T
+  private[cde] def site[T: Tag](name: String, subFields: Seq[String])(using CdeSource): T
 
 
 /** Methods for performing "up" or "super" [[Cde]] lookups
@@ -39,7 +39,7 @@ object Up extends Dynamic:
   /** Looks up a field in the parent [[Cde]]
     */
   def selectDynamic[T: Tag](name: String)(using CdeUpdateContext, CdeSource): T =
-    summon[CdeUpdateContext].up[T](name)
+    summon[CdeUpdateContext].up[T](name, Seq.empty)
 
 
 // final class SiteHandle private[cde] (builder: CdeBuilder) extends Dynamic:
@@ -50,18 +50,26 @@ object Up extends Dynamic:
 //     ctx.site[T](name)
 
 
+sealed class SiteHandle(
+  name: String,
+  reverseSubFields: Seq[String]
+)(using CdeUpdateContext, CdeSource) extends Dynamic:
+  def get[T: Tag]: T = summon[CdeUpdateContext].site[T](name, reverseSubFields.reverse)
+  def apply[T: Tag]: T = summon[CdeUpdateContext].site[T](name, reverseSubFields.reverse)
+  def selectDynamic(subField: String): SiteHandle = new SiteHandle(name, subField +: reverseSubFields)
+
 /** Methods for performing "site" or "self" [[Cde]] lookups
   */
 object Site extends Dynamic:
   /** Looks up a field from the top-level [[Cde]] by a string parameter
     */
-  def apply[T: Tag](name: String)(using CdeUpdateContext, CdeSource): T =
+  def apply(name: String)(using CdeUpdateContext, CdeSource): SiteHandle =
     selectDynamic(name)
 
   /** Looks up a field from the top-level [[Cde]] using method syntax
     */
-  def selectDynamic[T: Tag](name: String)(using CdeUpdateContext, CdeSource): T =
-    summon[CdeUpdateContext].site[T](name)
+  def selectDynamic(name: String)(using CdeUpdateContext, CdeSource): SiteHandle =
+    new SiteHandle(name, Seq.empty)
 
   def apply()(using ctx: CdeUpdateContext): Dynamic = ??? //new SiteHandle(ctx)
 /**

@@ -21,7 +21,7 @@ class CdeTests extends munit.FunSuite {
 
   test("updateField Site") {
     val cde = Cde {
-      "a" :+= (Site.b[String] + "c")
+      "a" :+= (Site.b.get[String] + "c")
     } + Cde {
       "b" := "c"
     }
@@ -54,7 +54,7 @@ class CdeTests extends munit.FunSuite {
     } + Cde {
       "b" ::+= Up.a[String] + "b"
     } + Cde {
-      "c" ::+= Site.b[String] + "c"
+      "c" ::+= Site.b.get[String] + "c"
     }
     assert(Cde.elaborate[JObject](cde) == Right(JObject(Seq())))
   }
@@ -75,7 +75,7 @@ class CdeTests extends munit.FunSuite {
 
   test("missing field") {
     val cde = Cde {
-      "a" :+= Site.b[String] + "c"
+      "a" :+= Site.b.get[String] + "c"
     }
     val result = Cde.elaborate[JObject](cde)
     result match
@@ -133,7 +133,7 @@ class CdeTests extends munit.FunSuite {
     } + Cde {
       "adf" := true
       "foo" :+= s"""
-        |  adf_site: ${Site.adf[Boolean]}
+        |  adf_site: ${Site.adf.get[Boolean]}
         |  adf_up: ${Up.adf[Boolean]}
         |  foo_up: ${Up.foo[String]}
         |  l_up: ${Up.l[List[Boolean]]}
@@ -143,6 +143,7 @@ class CdeTests extends munit.FunSuite {
         "c" := 2
         "d" := 3
       })
+      "sdf" :+= Site.obj.c.get[Int]
     }
     val result = Cde.elaborate[JObject](cde)
     result match
@@ -162,7 +163,8 @@ class CdeTests extends munit.FunSuite {
             "b" -> JInteger(1),
             "c" -> JInteger(2),
             "d" -> JInteger(3),
-          ))
+          )),
+          "sdf" -> JInteger(2),
         )).foreach { case (a, b) =>
           assert(a == b, s"expected $b, got $a")
         }
@@ -185,18 +187,18 @@ class CdeTests extends munit.FunSuite {
         // fails when using (Int, Int): "no implicit argument of type
         // cde.CdeBuilder was found for parameter x$2 of method ::+= in object
         // syntax"
-        val (x: Int, y: Int) = Site.origin_x_y[(Int, Int)]
-        val height = Site.height[Int]
-        val width = Site.width[Int]
-        Site.origin_location[Location] match
+        val (x: Int, y: Int) = Site.origin_x_y.get[(Int, Int)]
+        val height = Site.height.get[Int]
+        val width = Site.width.get[Int]
+        Site.origin_location.get[Location] match
           case Center => (x + width / 2, y + height / 2)
           case BottomRight => (x - width, y + height)
           case BottomLeft => (x, y + height)
           case TopRight => (x - width, y)
           case TopLeft => (x, y)
       }
-      "top" :+= Site.top_left[(Int, Int)]._2
-      "left" :+= Site.top_left[(Int, Int)]._1
+      "top" :+= Site.top_left.get[(Int, Int)]._2
+      "left" :+= Site.top_left.get[(Int, Int)]._1
     }
 
     def checkTopLeft(x: Int, y: Int, cde: Cde)(using munit.Location): Unit =

@@ -19,7 +19,7 @@ final class CdeHandle private[cde] (val source: CdeSource, val _id: CdeId) exten
   /** Looks up a field from the top-level [[Cde]] using method syntax
     */
   def selectDynamic[T: Tag](name: String)(using CdeUpdateContext, CdeSource): T =
-    summon[CdeUpdateContext].getUpdateContextForId(_id).site[T](name)
+    summon[CdeUpdateContext].getUpdateContextForId(_id).site[T](name, Seq.empty)
 
 opaque type CdeId = Int
 object CdeId:
