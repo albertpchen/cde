@@ -6,11 +6,7 @@ import scala.quoted._
 /** Replacement for scala 2 TypeTag that only supports checking type equality
   */
 @implicitNotFound("Cannot synthesize type Tag for type ${T}")
-sealed trait Tag[T] derives CanEqual:
-  /** The string value of the type [[T]] that uniquely identifies this type
-    */
-  protected def tag: String
-
+case class Tag[T]private (protected val tag: String) derives CanEqual:
   /** Returns true if this tag represents the same type as the given tag
     */
   def isSameType(t: Tag[?]): Boolean = tag == t.tag
@@ -29,13 +25,13 @@ sealed trait Tag[T] derives CanEqual:
 object Tag:
   inline given [T]: Tag[T] = ${ makeTag[T] }
 
+  def apply[T: Tag]: Tag[T] = summon[Tag[T]]
+
   /** Construct a [[Tag]] with the given string representation
     *
     * Should only be used by [[makeTag]].
     */
-  def apply[T](t: String): Tag[T] =
-    new Tag[T]:
-      val tag = t.toString
+  def create[T](t: String): Tag[T] = Tag[T](t.toString)
 
   /** Macro for syntesizing [[Tag]]s
     */
@@ -58,6 +54,6 @@ object Tag:
     val tpe = TypeTree.of[T].tpe.dealias.simplified
 
     if isGround(true, tpe) then
-      '{ Tag[T](${Expr(tpe.show)}) }
+      '{ Tag.create[T](${Expr(tpe.show)}) }
     else
       report.throwError(s"cannot create type tag for non-ground type: ${tpe.show}")

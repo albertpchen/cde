@@ -1,7 +1,5 @@
 package cde
 
-import cde.json.JValueEncoder
-
 import scala.collection.{mutable => mut}
 import scala.language.dynamics
 

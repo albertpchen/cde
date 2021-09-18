@@ -61,30 +61,6 @@ enum JValue derives CanEqual:
         builder += '}'
 
 
-/** Private helper class that keeps track of a Cde lookup result
-  *
-  * Defined as a separate trait so that we can use type members to ensure
-  * encoder and tag have the same type parameter.
-  */
-private trait Entry derives CanEqual:
-  type Value
-  def value: Value
-  def encoder: Option[JValueEncoder[Value]]
-  def tag: Tag[Value]
-  def src: CdeSource
-
-private object Entry:
-  /** Constructs a new [[Entry]]
-    */
-  def apply[V](v: V, e: Option[JValueEncoder[V]], t: Tag[V], s: CdeSource): Entry =
-    new Entry:
-      type Value = V
-      def value = v
-      def encoder = e
-      def tag = t
-      def src = s
-
-
 object JValue:
   private def escape(s: String, builder: StringBuilder): Unit =
     var idx = 0
@@ -108,12 +84,23 @@ object JValue:
             builder ++= c.toString
       idx += 1
 
-  given CdeElaborator[JObject] with
+  private val encoderMap = Map[Tag[_], JValueEncoder[_]](
+    Tag[Int] -> JValueEncoder[Int],
+    Tag[Long] -> JValueEncoder[Long],
+    Tag[Float] -> JValueEncoder[Float],
+    Tag[Double] -> JValueEncoder[Double],
+    Tag[String] -> JValueEncoder[String],
+    Tag[Boolean] -> JValueEncoder[Boolean],
+    Tag[ElaboratedCde] -> new JValueEncoder[ElaboratedCde]:
+      def encode(cde: ElaboratedCde) = elaborator.elaborate(cde),
+  )
+
+  given elaborator: CdeElaborator[JObject] with
     def elaborate(ctx: ElaboratedCde): JObject =
       val fields =
         for
           (name, entry) <- ctx.entries
-          encoder <- entry.encoder
+          encoder <- encoderMap.get(entry.tag)
         yield
-          name -> encoder.encode(entry.value)
+          name -> encoder.asInstanceOf[JValueEncoder[entry.Value]].encode(entry.value)
       JObject(fields)

@@ -1,7 +1,6 @@
 package cde
 
 import cde._
-import cde.json.{JValue, JValueEncoder}
 import scala.collection.mutable
 
 /** Thrown when an error is encountered during [[Up]] or [[Site]] lookup
@@ -20,23 +19,23 @@ private[cde] class CdeException(val errors: Seq[CdeError]) extends Exception(err
 private trait Entry derives CanEqual:
   type Value
   def value: Value
-  def encoder: Option[JValueEncoder[Value]]
+  def visibility: CdeVisibility
   def tag: Tag[Value]
   def src: CdeSource
 
 private object Entry:
-  def apply[V](v: V, e: Option[JValueEncoder[V]], t: Tag[V], s: CdeSource): Entry =
+  def apply[V](v: V, vis: CdeVisibility, t: Tag[V], s: CdeSource): Entry =
     new Entry:
       type Value = V
       def value = v
-      def encoder = e
+      def visibility = vis
       def tag = t
       def src = s
 
 sealed trait ElaboratedCde:
   val entries: Seq[(String, Entry)]
 
-sealed abstract class CdeEvaluator:
+sealed abstract class CdeEvaluator private[cde] (private[cde] val cde: Cde):
   def getField(name: String, src: CdeSource): Either[Seq[CdeError], Entry]
   def getField(name: String, subFields: Seq[String], src: CdeSource): Either[Seq[CdeError], Entry]
 
@@ -129,31 +128,48 @@ object CdeElaborator:
           )
         else
           cmdLookupMap(fieldLookup) match
-            case b: CdeCmd.Bind => Right(Entry(b.value, b.encoder, b.tag, b.source))
+            case b: CdeCmd.Bind => Right(Entry(b.value, b.visibility, b.tag, b.source))
             case u: CdeCmd.Update =>
               val updateCtx = makeUpdateCtx(fieldLookup.name, fieldLookup.id)
               try
                 val value = u.updateFn(using updateCtx)
-                Right(Entry(value, u.encoder, u.tag, u.source))
+                Right(Entry(value, u.visibility, u.tag, u.source))
               catch
                 case e: CdeException => Left(e.errors)
       })
 
-    new CdeEvaluator:
+    def evaluate(lookup: FieldLookup, result: Either[Errors, Entry]): Either[Errors, Entry] =
+      result.map { entry =>
+        if entry.tag.isSameType(cdeTag) then
+          val evaluator = evaluatorCache.getOrElseUpdate(
+            lookup,
+            elaborate(entry.value.asInstanceOf[Cde])
+          )
+          Entry(evaluator, entry.visibility, cdeEvaluatorTag, entry.src)
+        else entry
+      }
+
+    new CdeEvaluator(ctx):
       def getField(name: String, src: CdeSource): Either[Errors, Entry] =
-        lookupFn(FieldLookup(name, siteId), src)
+        val lookup = FieldLookup(name, siteId)
+        evaluate(lookup, lookupFn(lookup, src))
+
       def getField(name: String, subFields: Seq[String], src: CdeSource): Either[Seq[CdeError], Entry] =
-        evaluateSubFields(name, siteId, subFields)(using src)
+        evaluate(FieldLookup(name, siteId), evaluateSubFields(name, siteId, subFields)(using src))
+  
   
   private[cde] def elaborated(cde: Cde): Either[Seq[CdeError], ElaboratedCde] =
-    val errors = mutable.ArrayBuffer[CdeException]()
     val evaluator = elaborate(cde)
-    val fields = cde.ledger.foldLeft(new mutable.LinkedHashMap[String, Option[CdeSource]]) { case (acc, (_, cmds)) =>
+    evaluate(evaluator)
+
+  private[cde] def evaluate(evaluator: CdeEvaluator): Either[Seq[CdeError], ElaboratedCde] =
+    val errors = mutable.ArrayBuffer[CdeException]()
+    val fields = evaluator.cde.ledger.foldLeft(new mutable.LinkedHashMap[String, Option[CdeSource]]) { case (acc, (_, cmds)) =>
       cmds.foreach {
         case (key, cmd) if !acc.contains(key) =>
           val present = cmd.last match
-            case b: CdeCmd.Bind => if b.encoder.isDefined then Some(b.source) else None
-            case u: CdeCmd.Update => if u.encoder.isDefined then Some(u.source) else None
+            case b: CdeCmd.Bind => if b.visibility.isVisible then Some(b.source) else None
+            case u: CdeCmd.Update => if u.visibility.isVisible then Some(u.source) else None
           acc(key) = present
         case _ =>
       }
@@ -161,8 +177,13 @@ object CdeElaborator:
     }
     val result = fields.foldLeft(Right(Seq.empty): Either[Seq[CdeError], Seq[(String, Entry)]]) {
       case (Right(fields), (name, src)) if src.isDefined =>
-        evaluator.getField(name, src.get).map { f =>
-          (name -> f) +: fields
+        evaluator.getField(name, src.get).flatMap { entry =>
+          if entry.tag.isSameType(cdeEvaluatorTag) then
+            evaluate(entry.value.asInstanceOf[CdeEvaluator]).map { value =>
+              (name -> Entry(value, entry.visibility, Tag[ElaboratedCde], entry.src)) +: fields
+            }
+          else
+            Right((name -> entry) +: fields)
         }
       case (e, _) => e
     }

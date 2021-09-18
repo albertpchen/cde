@@ -21,7 +21,7 @@ class CdeTests extends munit.FunSuite {
 
   test("updateField Site") {
     val cde = Cde {
-      "a" :+= (Site.b.get[String] + "c")
+      "a" :+= (Site[String].b() + "c")
     } + Cde {
       "b" := "c"
     }
@@ -34,7 +34,7 @@ class CdeTests extends munit.FunSuite {
   test("updateField with self") {
     val cde = Cde {
       val local = self
-      "a" :+= (self.b[String] + "c")
+      "a" :+= (local.b[String] + "c")
     } + Cde {
       "b" := "c"
     }
@@ -54,14 +54,16 @@ class CdeTests extends munit.FunSuite {
     } + Cde {
       "b" ::+= Up.a[String] + "b"
     } + Cde {
-      "c" ::+= Site.b.get[String] + "c"
+      "c" ::+= Site[String].b.d() + "c" // normally would result in a type error, but it is not evaluated because it is hidden and unused
+      "d" :+= Up.a[String]
     }
-    assert(Cde.elaborate[JObject](cde) == Right(JObject(Seq())))
+    val result = Cde.elaborate[JObject](cde)
+    assert(result == Right(JObject(Seq("d" -> JString("b")))), result)
   }
 /*
   test("duplicate fields") {
     val cde = Cde {
-      "a" :+= (Site.b[String] + "c")
+      "a" :+= (Site[String].b() + "c")
       "a" := "c"
     }
     val result = Cde.elaborate[JObject](cde)
@@ -75,7 +77,7 @@ class CdeTests extends munit.FunSuite {
 
   test("missing field") {
     val cde = Cde {
-      "a" :+= Site.b.get[String] + "c"
+      "a" :+= Site[String].b() + "c"
     }
     val result = Cde.elaborate[JObject](cde)
     result match
@@ -133,7 +135,7 @@ class CdeTests extends munit.FunSuite {
     } + Cde {
       "adf" := true
       "foo" :+= s"""
-        |  adf_site: ${Site.adf.get[Boolean]}
+        |  adf_site: ${Site[Boolean].adf()}
         |  adf_up: ${Up.adf[Boolean]}
         |  foo_up: ${Up.foo[String]}
         |  l_up: ${Up.l[List[Boolean]]}
@@ -143,7 +145,7 @@ class CdeTests extends munit.FunSuite {
         "c" := 2
         "d" := 3
       })
-      "sdf" :+= Site.obj.c.get[Int]
+      "sdf" :+= Site[Int].obj.c()
     }
     val result = Cde.elaborate[JObject](cde)
     result match
@@ -187,18 +189,18 @@ class CdeTests extends munit.FunSuite {
         // fails when using (Int, Int): "no implicit argument of type
         // cde.CdeBuilder was found for parameter x$2 of method ::+= in object
         // syntax"
-        val (x: Int, y: Int) = Site.origin_x_y.get[(Int, Int)]
-        val height = Site.height.get[Int]
-        val width = Site.width.get[Int]
-        Site.origin_location.get[Location] match
+        val (x: Int, y: Int) = Site[(Int, Int)].origin_x_y()
+        val height = Site[Int].height()
+        val width = Site[Int].width()
+        Site[Location].origin_location() match
           case Center => (x + width / 2, y + height / 2)
           case BottomRight => (x - width, y + height)
           case BottomLeft => (x, y + height)
           case TopRight => (x - width, y)
           case TopLeft => (x, y)
       }
-      "top" :+= Site.top_left.get[(Int, Int)]._2
-      "left" :+= Site.top_left.get[(Int, Int)]._1
+      "top" :+= Site[(Int, Int)].top_left()._2
+      "left" :+= Site[(Int, Int)].top_left()._1
     }
 
     def checkTopLeft(x: Int, y: Int, cde: Cde)(using munit.Location): Unit =
@@ -248,7 +250,7 @@ class CdeTests extends munit.FunSuite {
     def translate(dx: Int, dy: Int)(cde: Cde): Cde =
       cde + Cde {
         "origin_x_y" ::+= {
-          val (x: Int, y: Int) = Up.origin_x_y[Tuple2[Int, Int]]
+          val (x: Int, y: Int) = Up.origin_x_y[(Int, Int)]
           (x + dx, y + dy)
         }
       }

@@ -41,6 +41,8 @@ object JValueEncoder:
       Cde.elaborate[JValue.JObject](cde)
         .fold(e => throw new Exception(e.mkString("\n")), identity)
 
+  def apply[T: JValueEncoder] = summon[JValueEncoder[T]]
+
   /** Encoder for Tuples types
     *
     * Tuples are encoded as JArrays of their elements

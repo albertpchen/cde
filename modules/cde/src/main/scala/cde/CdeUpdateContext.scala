@@ -50,28 +50,56 @@ object Up extends Dynamic:
 //     ctx.site[T](name)
 
 
-sealed class SiteHandle(
-  name: String,
+// object SiteHandle:
+//   given [T](using CdeUpdateContext, CdeSource): Conversion[SiteHandle[T], T] with
+//     def apply(handle: SiteHandle[T]): T = handle()
+
+
+sealed class SiteHandle[T: Tag](
   reverseSubFields: Seq[String]
-)(using CdeUpdateContext, CdeSource) extends Dynamic:
-  def get[T: Tag]: T = summon[CdeUpdateContext].site[T](name, reverseSubFields.reverse)
-  def apply[T: Tag]: T = summon[CdeUpdateContext].site[T](name, reverseSubFields.reverse)
-  def selectDynamic(subField: String): SiteHandle = new SiteHandle(name, subField +: reverseSubFields)
+) extends Dynamic:
+  def apply()(using CdeUpdateContext, CdeSource): T =
+    val ctx = summon[CdeUpdateContext]
+    if reverseSubFields.isEmpty then
+      ctx.site[T](ctx.currentName, reverseSubFields.reverse)
+    else
+      val rev = reverseSubFields.reverse
+      ctx.site[T](rev.head, rev.tail)
 
-/** Methods for performing "site" or "self" [[Cde]] lookups
-  */
-object Site extends Dynamic:
-  /** Looks up a field from the top-level [[Cde]] by a string parameter
-    */
-  def apply(name: String)(using CdeUpdateContext, CdeSource): SiteHandle =
-    selectDynamic(name)
+  def selectDynamic(subField: String): SiteHandle[T] =
+    new SiteHandle(subField +: reverseSubFields)
 
-  /** Looks up a field from the top-level [[Cde]] using method syntax
-    */
-  def selectDynamic(name: String)(using CdeUpdateContext, CdeSource): SiteHandle =
-    new SiteHandle(name, Seq.empty)
+  def applyDynamic(subField: String)()(using CdeUpdateContext, CdeSource): T =
+    selectDynamic(subField)()
 
-  def apply()(using ctx: CdeUpdateContext): Dynamic = ??? //new SiteHandle(ctx)
+def Site[T: Tag](using CdeUpdateContext, CdeSource): SiteHandle[T] =
+  new SiteHandle[T](Seq.empty)
+
+final class Path(reverseSubFields: Seq[String]) extends Dynamic:
+  def selectDynamic(subField: String): Path = new Path(subField +: reverseSubFields)
+
+// sealed class SiteHandle(
+//   name: String,
+//   reverseSubFields: Seq[String]
+// )(using CdeUpdateContext, CdeSource) extends Dynamic:
+//   def get[T: Tag]: T = summon[CdeUpdateContext].site[T](name, reverseSubFields.reverse)
+//   def apply[T: Tag]: T = summon[CdeUpdateContext].site[T](name, reverseSubFields.reverse)
+//   def selectDynamic(subField: String): SiteHandle = new SiteHandle(name, subField +: reverseSubFields)
+//
+// /** Methods for performing "site" or "self" [[Cde]] lookups
+//   */
+// object Site extends Dynamic:
+//   /** Looks up a field from the top-level [[Cde]] by a string parameter
+//     */
+//   def apply(name: String)(using CdeUpdateContext, CdeSource): SiteHandle =
+//     selectDynamic(name)
+// 
+//   /** Looks up a field from the top-level [[Cde]] using method syntax
+//     */
+//   def selectDynamic(name: String)(using CdeUpdateContext, CdeSource): SiteHandle =
+//     new SiteHandle(name, Seq.empty)
+// 
+//   def apply()(using ctx: CdeUpdateContext): Dynamic = ??? //new SiteHandle(ctx)
 /**
  * Cde {
  *   "project" :+= Cde {

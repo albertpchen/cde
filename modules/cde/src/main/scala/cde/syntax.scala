@@ -1,11 +1,9 @@
 package cde
 
-import cde.json.JValueEncoder
-
 /** Extension methods for arguably nicer syntax for building [[Cde]]s
   */
 object syntax:
-  extension [T: JValueEncoder : Tag](name: String)(using CdeBuilder, CdeSource)
+  extension [T: Tag](name: String)(using CdeBuilder, CdeSource)
     /** Operator for bind
       */
     def := (v: T): Unit = bind(name, v)
