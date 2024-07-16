@@ -10,13 +10,19 @@ import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
 sealed trait Cde extends Dynamic derives CanEqual:
   def getSource(): Source
 
-  final def +(overrides: Cde)(using Source): Cde =
+  inline final def +(overrides: Cde)(using Source): Cde =
     Cde.Mixin(summon, this, overrides)
 
-  def selectDynamic(name: String): Cde.Select =
-    Cde.Select(this, NonEmptyChain(name))
+  transparent inline def selectDynamic[T](inline name: String)(using Source) =
+    inline compiletime.erasedValue[T] match
+      case _: Nothing => Cde.Select(this, NonEmptyChain(name))
+      case _: T => get[T](NonEmptyChain(name))
+    // inline if name == "apply" then
+    //   get[T](NonEmptyChain(name))
+    // else
+    //   Cde.Select(this, NonEmptyChain(name))
 
-  private[cde] def get(field: String): Option[Cde.Value]
+  protected def get(field: String): Option[Cde.Value]
 
   private val cache = scala.collection.concurrent.TrieMap[String, Try[Any]]()
   private def force[T: Tag](field: String)(using Source) =
@@ -37,7 +43,7 @@ sealed trait Cde extends Dynamic derives CanEqual:
     .get
     .asInstanceOf[T]
 
-  private def get[T: Tag](path: NonEmptyChain[String])(using Source): T =
+  private[cde] def get[T: Tag](path: NonEmptyChain[String])(using Source): T =
     path
       .tail
       .uncons
@@ -48,7 +54,7 @@ sealed trait Cde extends Dynamic derives CanEqual:
         child.get[T](NonEmptyChain(head) :++ tail)
       }
 
-  def apply(build: Cde.Builder ?=> Unit)(using Source): Cde =
+  inline def apply(build: Cde.Builder ?=> Unit)(using Source): Cde =
     this + Cde.apply(build)
 
 
@@ -61,6 +67,8 @@ object Cde:
   object Codec extends HasJsonCodecMaker:
     given Codec[Cde] = Cde.codec
 
+    inline def fromJsoniter[T](codec: JsonValueCodec[T]): Codec[T] = codec
+
   class CodecValue[T](t: T, codec: JsonValueCodec[T], val isForcedVisible: Boolean):
     def notForcedVisibe = !isForcedVisible
     def writeValue(writer: JsonWriter): Unit = codec.encodeValue(t, writer)
@@ -69,7 +77,7 @@ object Cde:
     def nullValue: Cde = null
     def encodeValue(root: Cde, writer: JsonWriter): Unit =
       val isHidden = scala.collection.mutable.Set[String]()
-      val members = scala.collection.mutable.ListMap[String, CodecValue[?]]()
+      val members = scala.collection.mutable.LinkedHashMap[String, CodecValue[?]]()
       def findHidden(cde: Cde): Unit =
         cde match
           case mixin: Mixin =>
@@ -137,15 +145,14 @@ object Cde:
   val tag: Tag[Cde] = summon
 
   final class Select(cde: Cde, path: NonEmptyChain[String]) extends Dynamic derives CanEqual:
-    def selectDynamic(name: String): Select =
-      Select(cde, path :+ name)
-
-    def ![T: Tag](using Source) =
-      cde.get(path)
+    transparent inline def selectDynamic[T](inline name: String)(using Source): Select | T =
+      inline compiletime.erasedValue[T] match
+        case _: Nothing => Select(cde, path :+ name)
+        case _: T => cde.get[T](path :+ name)
 
   final case class Mixin(source: Source, left: Cde, right: Cde) extends Cde:
     def getSource() = source
-    private[cde] def get(field: String): Option[Value] =
+    protected def get(field: String): Option[Value] =
       val getRight = right.get(field)
       if getRight.isDefined then getRight else left.get(field)
 
@@ -157,7 +164,7 @@ object Cde:
 
   final case class Leaf(source: Source, members: VectorMap[String, Value]) extends Cde:
     def getSource() = source
-    private[cde] def get(field: String): Option[Value] = members.get(field)
+    protected def get(field: String): Option[Value] = members.get(field)
 
   final case class Ctx private[cde] (
     private[cde] val self: Cde,
@@ -202,15 +209,16 @@ object Cde:
 def Self(using ctx: Cde.Ctx): Cde = ctx.self
 
 object Super extends Dynamic:
-  def apply(using ctx: Cde.Ctx): Cde =
+  transparent inline def selectDynamic[T](inline fieldName: String)(using ctx: Cde.Ctx, src: Source): Cde.Select | T =
     ctx.self match
-    case leaf: Cde.Leaf => throw new Cde.SuperLookupError(ctx)
-    case mixin: Cde.Mixin => mixin.Super
-
-  def selectDynamic(fieldName: String)(using ctx: Cde.Ctx): Cde.Select =
-    ctx.self match
-    case leaf: Cde.Leaf => throw new Cde.SuperLookupError(ctx)
-    case mixin: Cde.Mixin => mixin.Super.selectDynamic(fieldName)
-
-  def ![T: Tag](using ctx: Cde.Ctx): T =
-    apply.selectDynamic(ctx.fieldName).![T]
+      case leaf: Cde.Leaf => throw new Cde.SuperLookupError(ctx)
+      case mixin: Cde.Mixin =>
+        inline compiletime.erasedValue[T] match
+          case _: Nothing => mixin.Super.selectDynamic[T](fieldName)
+          case _: T =>
+            mixin.Super.get[T](NonEmptyChain(
+              inline if fieldName == "apply" then
+                ctx.fieldName
+              else
+                fieldName
+            ))

@@ -16,7 +16,7 @@ object Source:
   def cdeSourceImpl(using Quotes): Expr[Source] =
     import quotes.reflect._
     val pos = quotes.reflect.Position.ofMacroExpansion
-    val jpath = pos.sourceFile.jpath
+    val jpath = pos.sourceFile.getJPath.get
     val file =
       if jpath == null then
         "REPL"

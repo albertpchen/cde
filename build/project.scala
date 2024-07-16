@@ -10,13 +10,13 @@ val Project = Cde {}
 
 def BaseProject(name: String, hasTestProject: Boolean = true): Cde = Cde {
   "name" := name
-  "sources" := List(s"modules/${Self.name.![String]}/src")
+  "sources" := List(s"modules/${Self.name[String]}/src")
   "libraries" := List.empty[String]
   "dependencies" := List.empty[Cde]
   "scalaVersion" := "3.5.0"
   "jvm" := {
     Project + Self + Cde {
-      "dependencies" := Self.dependencies.![List[String]]
+      "dependencies" := Self.dependencies[List[String]]
       "platform" := "jvm"
     }
   }
@@ -25,8 +25,8 @@ def BaseProject(name: String, hasTestProject: Boolean = true): Cde = Cde {
     "test" := BaseProject(s"$name-test", hasTestProject = false) {
       val base = Self
       "dependencies" := List(base)
-      "sources" := List(s"modules/${base.name.![String]}/test")
-      "scalaVersion" := base.scalaVersion.![String]
+      "sources" := List(s"modules/${base.name[String]}/test")
+      "scalaVersion" := base.scalaVersion[String]
     }
 }
 

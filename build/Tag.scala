@@ -66,7 +66,7 @@ object Tag:
     if isGround(true, tpe) then
       '{ Tag[T](${Expr(tpe.show)})(using scala.compiletime.summonInline) }
     else
-      report.throwError(s"cannot create type tag for non-ground type: ${tpe.show}")
+      report.errorAndAbort(s"cannot create type tag for non-ground type: ${tpe.show}")
 
 final class IsIOTest[T] private (val isIO: Boolean)
 

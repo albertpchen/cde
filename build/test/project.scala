@@ -10,26 +10,26 @@ import com.github.plokhotnyuk.jsoniter_scala.core.{writeToString, WriterConfig}
 object Tests extends weaver.FunSuite {
   test("asserts") {
     val cde = Cde { "a" := "b" }
-    expect.eql(cde.a.![String], "b")
+    expect.eql(cde.a[String], "b")
   }
 
   test("update super") {
     val cde = Cde {
       "a" := "b"
     } {
-      "a" := (Super.![String] + "b")
+      "a" := (Super[String] + "b")
     }
-    expect.eql(cde.a.![String], "bb")
+    expect.eql(cde.a[String], "bb")
   }
 
   test("update self") {
     val cde = Cde {
-      "a" := Self.b.![String] + "c"
+      "a" := Self.b[String] + "c"
     } {
       "b" := "c"
     }
-    expect.eql(cde.a.![String], "cc")
-    expect.eql(cde.b.![String], "c")
+    expect.eql(cde.a[String], "cc")
+    expect.eql(cde.b[String], "c")
   }
 
   inline def expectError(inline thunk: Any)(inline fn: Throwable => Expectations) =
@@ -43,9 +43,9 @@ object Tests extends weaver.FunSuite {
 
   test("missing field") {
     val TestCde = Cde {
-      "a" := Self.b.![String] + "c"
+      "a" := Self.b[String] + "c"
     }
-    expectError(TestCde.a.![String]) {
+    expectError(TestCde.a[String]) {
       case Cde.LookupError(TestCde, "b", StringTag) => success
       case e => failure(s"unexpected exception $e")
     }
@@ -53,9 +53,9 @@ object Tests extends weaver.FunSuite {
 
   test("missing super") {
     val TestCde = Cde {
-      "a" := Super.a.![String] + "c"
+      "a" := Super.a[String] + "c"
     }
-    expectError(TestCde.a.![String]) {
+    expectError(TestCde.a[String]) {
       case Cde.SuperLookupError(Cde.Ctx(TestCde, "a", _)) => success
       case e => failure(s"unexpected exception $e")
     }
@@ -64,9 +64,9 @@ object Tests extends weaver.FunSuite {
   test("missing field in super") {
     val SuperCde = Cde { }
     val TestCde = SuperCde {
-      "a" := Super.a.![String] + "c"
+      "a" := Super.a[String] + "c"
     }
-    expectError(TestCde.a.![String]) {
+    expectError(TestCde.a[String]) {
       case Cde.LookupError(SuperCde, "a", StringTag) => success
       case e => failure(s"unexpected exception $e")
     }
@@ -84,46 +84,46 @@ object Tests extends weaver.FunSuite {
       //"lll" :+= Up.ccc[String]
       "adf" := false
       "l" := List[Boolean](false)
-      "bbb" := Super.foo.![String]
+      "bbb" := Super.foo[String]
       "obj" := Cde {
         "a" := 0
         "b" := 1
       }
-      "hidden_default" ::= Self.hidden.![Any]
+      "hidden_default" ::= Self.hidden[Any]
     } {
       "adf" := true
-      "foo" := s"""adf_site: ${Self.adf.![Boolean]}
-                  |adf_up: ${Super.adf.![Boolean]}
-                  |foo_up: ${Super.foo.![String]}
-                  |l_up: ${Super.l.![List[Boolean]]}
+      "foo" := s"""adf_site: ${Self.adf[Boolean]}
+                  |adf_up: ${Super.adf[Boolean]}
+                  |foo_up: ${Super.foo[String]}
+                  |l_up: ${Super.l[List[Boolean]]}
                   |""".stripMargin
-      "l" := Super.l.![List[Boolean]].head
-      "obj" := Super.obj.![Cde].apply {
+      "l" := Super.l[List[Boolean]].head
+      "obj" := Super.obj[Cde].apply {
         "c" := 2
         "d" := 3
       }
-      "sdf" := Self.obj.c.![Int]
+      "sdf" := Self.obj.c[Int]
 
-      "hidden" ::= Self.hidden.![String]
-      "hidden_default" := Self.hidden.![String]
+      "hidden" ::= Self.hidden[String]
+      "hidden_default" := Self.hidden[String]
     }
     println(writeToString(cde, WriterConfig.withIndentionStep(2)))
     expect.eql(
-      cde.foo.![String],
+      cde.foo[String],
       s"""adf_site: true
          |adf_up: false
          |foo_up: SLDFKJ
          |l_up: List(false)
          |""".stripMargin
     ) &&
-      expect.eql(cde.adf.![Boolean], true) &&
-      expect.eql(cde.l.![Boolean], false) &&
-      expect.eql(cde.bbb.![String], "SLDFKJ")
-      expect.eql(cde.obj.a.![Int], 0) &&
-      expect.eql(cde.obj.b.![Int], 1) &&
-      expect.eql(cde.obj.c.![Int], 2) &&
-      expect.eql(cde.obj.d.![Int], 3) &&
-      expect.eql(cde.sdf.![Int], 2)
+      expect.eql(cde.adf[Boolean], true) &&
+      expect.eql(cde.l[Boolean], false) &&
+      expect.eql(cde.bbb[String], "SLDFKJ")
+      expect.eql(cde.obj.a[Int], 0) &&
+      expect.eql(cde.obj.b[Int], 1) &&
+      expect.eql(cde.obj.c[Int], 2) &&
+      expect.eql(cde.obj.d[Int], 3) &&
+      expect.eql(cde.sdf[Int], 2)
   }
 
   enum Location:
@@ -139,22 +139,22 @@ object Tests extends weaver.FunSuite {
       "width" := 10
       "height" := 20
       "top_left" := {
-        val (x, y) = Self.origin_x_y.![(Int, Int)]
-        val height = Self.height.![Int]
-        val width = Self.width.![Int]
-        Self.origin_location.![Location] match
+        val (x, y) = Self.origin_x_y[(Int, Int)]
+        val height = Self.height[Int]
+        val width = Self.width[Int]
+        Self.origin_location[Location] match
           case Center => (x + width / 2, y + height / 2)
           case BottomRight => (x - width, y + height)
           case BottomLeft => (x, y + height)
           case TopRight => (x - width, y)
           case TopLeft => (x, y)
       }
-      "top" := Self.top_left.![(Int, Int)]._2
-      "left" := Self.top_left.![(Int, Int)]._1
+      "top" := Self.top_left[(Int, Int)]._2
+      "left" := Self.top_left[(Int, Int)]._1
     }
 
-    inline def checkTopLeft(x: Int, y: Int, cde: Cde): Expectations =
-      expect.eql(cde.top.![Int], y) && expect.eql(cde.left.![Int], x)
+    def checkTopLeft(x: Int, y: Int, cde: Cde): Expectations =
+      expect.eql(cde.top[Int], y) && expect.eql(cde.left[Int], x)
 
     checkTopLeft(5, 10, base {
       "origin_x_y" := (0, 0)
@@ -191,7 +191,7 @@ object Tests extends weaver.FunSuite {
     def translate(dx: Int, dy: Int)(cde: Cde): Cde =
       cde {
         "origin_x_y" := {
-          val (x: Int, y: Int) = Super.origin_x_y.![Tuple2[Int, Int]]
+          val (x: Int, y: Int) = Super.origin_x_y[Tuple2[Int, Int]]
           (x + dx, y + dy)
         }
       }
